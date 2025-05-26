@@ -4,8 +4,11 @@ import doctorsRouter from "./routes/doctors/index";
 import appointmentsRouter from "./routes/appointments/index";
 import recordsRouter from "./routes/records/index";
 import statsRouter from "./routes/stats/index";
+import './db';  // This will initialize the database connection
+import { config } from 'dotenv';
+config();
 
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 const app = express();
 
