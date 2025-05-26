@@ -1,5 +1,4 @@
 import { Router } from "express";
-import type { RequestHandler } from "express";
 import { getPatients, addPatient, updatePatient, deletePatient } from "./patientsController";
 
 const router = Router();
@@ -10,6 +9,6 @@ router.post('/', addPatient);
 
 router.put('/:id', updatePatient);
 
-router.delete('/:id', deletePatient as RequestHandler);
+router.delete('/:id', deletePatient);
 
 export default router;

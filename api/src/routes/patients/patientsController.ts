@@ -2,27 +2,43 @@ import { Request, Response } from 'express';
 import { db } from '../../db';
 import { patients } from '../../db/schema';
 import { eq } from 'drizzle-orm';
+import { z } from 'zod/v4';
 
-export async function getPatients(req: Request, res: Response) {
+const patientSchema = z.object({
+    fullName: z.string().min(2).max(100),
+    dateOfBirth: z.date(),
+    gender: z.string().min(2).max(100),
+    contactInfo: z.string().min(2).max(100),
+    insuranceProvider: z.string().min(2).max(100),
+    insuranceNumber: z.string().min(2).max(100),
+});
+
+export async function getPatients(req: Request, res: Response): Promise<any> {
 
     const patients = await db.query.patients.findMany();
     res.send(patients);
 };
 
-export async function addPatient(req: Request, res: Response) {
-    const { fullName, dateOfBirth, gender, contactInfo, insuranceProvider, insuranceNumber } = req.body;
-    const patient = await db.insert(patients).values({ fullName, dateOfBirth, gender, contactInfo, insuranceProvider, insuranceNumber });
+export async function addPatient(req: Request, res: Response): Promise<any> {
+    const { success, data, error } = patientSchema.safeParse(req.body);
+    if (!success) {
+        return res.status(400).json({ error: error.message });
+    }
+    const patient = await db.insert(patients).values(data);
     res.send(patient);
 };
 
-export async function updatePatient(req: Request, res: Response) {
+export async function updatePatient(req: Request, res: Response): Promise<any> {
     const { id } = req.params;
-    const { fullName, dateOfBirth, gender, contactInfo, insuranceProvider, insuranceNumber } = req.body;
-    const patient = await db.update(patients).set({ fullName, dateOfBirth, gender, contactInfo, insuranceProvider, insuranceNumber }).where(eq(patients.id, parseInt(id)));
+    const { success, data, error } = patientSchema.safeParse(req.body);
+    if (!success) {
+        return res.status(400).json({ error: error.message });
+    }
+    const patient = await db.update(patients).set(data).where(eq(patients.id, parseInt(id)));
     res.send(patient);
 };
 
-export async function deletePatient(req: Request, res: Response) {
+export async function deletePatient(req: Request, res: Response): Promise<any> {
     try {
         const { id } = req.params;
         const patientId = Number(id);
