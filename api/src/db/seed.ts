@@ -12,20 +12,20 @@ async function seed() {
     // Insert test patients
     const [patient1, patient2] = await db.insert(patients).values([
       {
-        firstName: 'Kamau',
-        lastName: 'Njoroge',
-        email: 'kamau.njoroge@example.com',
-        phone: '+254 712 345 678',
+        fullName: 'Kamau Njoroge',
         dateOfBirth: new Date('1985-06-15'),
         gender: 'male',
+        contactInfo: '0722334455',
+        insuranceProvider: 'AIA',
+        insuranceNumber: '1234567890',
       },
       {
-        firstName: 'Wanjiku',
-        lastName: 'Muthoni',
-        email: 'wanjiku.muthoni@example.com',
-        phone: '+254 723 456 789',
+        fullName: 'Wanjiku Muthoni',
         dateOfBirth: new Date('1990-03-20'),
         gender: 'female',
+        contactInfo: '0722334455',
+        insuranceProvider: 'AIA',
+        insuranceNumber: '1234567890',
       },
     ]).returning();
 

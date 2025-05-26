@@ -1,19 +1,19 @@
 import { pgTable, serial, varchar, timestamp, integer, boolean, text } from 'drizzle-orm/pg-core';
 
 export const patients = pgTable('patients', {
-    id: serial('id').primaryKey(),
-    firstName: varchar('first_name', { length: 100 }).notNull(),
-    lastName: varchar('last_name', { length: 100 }).notNull(),
-    email: varchar('email', { length: 255 }).notNull().unique(),
-    phone: varchar('phone', { length: 20 }),
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    fullName: varchar('full_name', { length: 100 }).notNull(),
     dateOfBirth: timestamp('date_of_birth').notNull(),
     gender: varchar('gender', { length: 10 }).notNull(),
+    contactInfo: varchar('contact_info', { length: 255 }).notNull(),
+    insuranceProvider: varchar('insurance_provider', { length: 100 }),
+    insuranceNumber: varchar('insurance_number', { length: 50 }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 export const doctors = pgTable('doctors', {
-    id: serial('id').primaryKey(),
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
     firstName: varchar('first_name', { length: 100 }).notNull(),
     lastName: varchar('last_name', { length: 100 }).notNull(),
     email: varchar('email', { length: 255 }).notNull().unique(),
@@ -21,12 +21,13 @@ export const doctors = pgTable('doctors', {
     specialization: varchar('specialization', { length: 100 }).notNull(),
     licenseNumber: varchar('license_number', { length: 50 }).notNull().unique(),
     isAvailable: boolean('is_available').default(true),
+    isActive: boolean('is_active').default(true), // used to soft delete the doctor
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 export const appointments = pgTable('appointments', {
-    id: serial('id').primaryKey(),
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
     patientId: integer('patient_id').references(() => patients.id).notNull(),
     doctorId: integer('doctor_id').references(() => doctors.id).notNull(),
     appointmentDate: timestamp('appointment_date').notNull(),
@@ -37,7 +38,7 @@ export const appointments = pgTable('appointments', {
 });
 
 export const medicalRecords = pgTable('medical_records', {
-    id: serial('id').primaryKey(),
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
     patientId: integer('patient_id').references(() => patients.id).notNull(),
     doctorId: integer('doctor_id').references(() => doctors.id).notNull(),
     diagnosis: text('diagnosis').notNull(),
