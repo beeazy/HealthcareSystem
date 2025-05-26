@@ -21,7 +21,7 @@ async function isTimeSlotAvailable(doctorId: number, appointmentDate: Date): Pro
         where: eq(doctors.id, doctorId)
     });
 
-    if (!doctor?.isAvailable) {
+    if (!doctor?.isAvailable || !doctor?.isActive) {
         return false;
     }
 
