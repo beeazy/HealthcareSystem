@@ -38,7 +38,7 @@ export const appointments = pgTable('appointments', {
 });
 
 export const medicalRecords = pgTable('medical_records', {
-    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    id: serial('id').primaryKey(),
     patientId: integer('patient_id').references(() => patients.id).notNull(),
     doctorId: integer('doctor_id').references(() => doctors.id).notNull(),
     diagnosis: text('diagnosis').notNull(),
