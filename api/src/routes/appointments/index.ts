@@ -1,18 +1,13 @@
 import { Router } from "express";
+import { scheduleAppointment, viewSchedule, changeStatus } from "./appointmentsController";
 
 const router = Router();
 
-router.post('/', (req, res) => {
-    res.send('Schedule Appointment');
-});
+router.post('/', scheduleAppointment);
 
-router.get('/', (req, res) => {
-    res.send('View Schedule');
-});
+router.get('/', viewSchedule);
 
-router.put('/:id/status', (req, res) => {
-    res.send('Change Status');
-});
+router.put('/:id/status', changeStatus);
 
 export default router;
 
