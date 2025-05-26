@@ -7,7 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsx watch --env-file=.env src/index.ts",
     "migrate": "drizzle-kit migrate",
-    "studio": "drizzle-kit studio"
+    "studio": "drizzle-kit studio",
+    "generate": "drizzle-kit generate",
+    "seed": "tsx src/db/seed.ts"
   },
   "keywords": [],
   "author": "",
