@@ -15,3 +15,27 @@ export function updatePatient(req: Request, res: Response) {
 export function deletePatient(req: Request, res: Response) {
     res.send('Delete Patient');
 };
+
+
+// Patient Management
+// Endpoints:
+
+// POST /patients – Register a new patient.
+
+// GET /patients/:id – Retrieve patient profile.
+
+// PUT /patients/:id – Update patient details.
+
+// DELETE /patients/:id – Soft-delete or deactivate a patient.
+
+// Data Fields:
+
+// Full name, Date of birth, Gender, Contact info
+
+// Patient ID (auto-generated)
+
+// Insurance provider, insurance number
+
+// Security:
+
+// Basic authentication + authorization.
