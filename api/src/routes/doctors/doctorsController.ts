@@ -14,7 +14,7 @@ const doctorSchema = z.object({
     licenseNumber: z.string().min(5).max(50),
     isAvailable: z.boolean().optional(),
     isActive: z.boolean().optional(),
-});
+}).strict();
 
 export async function getDoctors(req: Request, res: Response) {
     try {

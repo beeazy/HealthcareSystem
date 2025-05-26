@@ -11,7 +11,7 @@ const medicalRecordSchema = z.object({
     diagnosis: z.string().min(1),
     prescription: z.string().optional(),
     notes: z.string().optional(),
-});
+}).strict();
 
 export async function addMedicalRecord(req: Request, res: Response): Promise<any> {
     try {

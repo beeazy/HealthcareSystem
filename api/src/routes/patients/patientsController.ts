@@ -11,7 +11,7 @@ const patientSchema = z.object({
     contactInfo: z.string().min(2).max(100),
     insuranceProvider: z.string().min(2).max(100),
     insuranceNumber: z.string().min(2).max(100),
-});
+}).strict();
 
 export async function getPatients(req: Request, res: Response): Promise<any> {
 
@@ -24,13 +24,22 @@ export async function addPatient(req: Request, res: Response): Promise<any> {
     if (!success) {
         return res.status(400).json({ error: error.message });
     }
-    const patient = await db.insert(patients).values(data);
+    const patient = await db.insert(patients).values(
+        {
+            fullName: data.fullName,
+            dateOfBirth: data.dateOfBirth,
+            gender: data.gender,
+            contactInfo: data.contactInfo,
+            insuranceProvider: data.insuranceProvider,
+            insuranceNumber: data.insuranceNumber
+        }
+    );
     res.send(patient);
 };
 
 export async function updatePatient(req: Request, res: Response): Promise<any> {
     const { id } = req.params;
-    const { success, data, error } = patientSchema.safeParse(req.body);
+    const { success, data, error } = patientSchema.partial().safeParse(req.body);
     if (!success) {
         return res.status(400).json({ error: error.message });
     }

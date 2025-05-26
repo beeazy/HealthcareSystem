@@ -10,7 +10,7 @@ const appointmentSchema = z.object({
     doctorId: z.number().int().positive(),
     appointmentDate: z.string().transform(str => new Date(str)),
     notes: z.string().optional(),
-});
+}).strict();
 
 const statusSchema = z.enum(['scheduled', 'cancelled', 'completed']);
 
