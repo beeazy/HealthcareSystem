@@ -1,5 +1,17 @@
 import { pgTable, serial, varchar, timestamp, integer, boolean, text } from 'drizzle-orm/pg-core';
 
+export const users = pgTable('users', {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    email: varchar('email', { length: 255 }).notNull().unique(),
+    password: varchar('password', { length: 255 }).notNull(),
+    firstName: varchar('first_name', { length: 100 }).notNull(),
+    lastName: varchar('last_name', { length: 100 }).notNull(),
+    role: varchar('role', { length: 20 }).notNull().default('doctor'),
+    doctorId: integer('doctor_id').references(() => doctors.id),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 export const patients = pgTable('patients', {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     fullName: varchar('full_name', { length: 100 }).notNull(),
