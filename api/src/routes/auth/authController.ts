@@ -171,7 +171,7 @@ export const createAdmin = async (req: Request, res: Response): Promise<any> => 
     const { adminKey, ...userData } = createAdminSchema.parse(req.body);
 
     if (!ADMIN_CREATION_KEY || adminKey !== ADMIN_CREATION_KEY) {
-      return res.status(403).json({ error: 'Invalid admin creation key' });
+      return res.status(403).json({ error: 'You might not be authorized to perform this action' });
     }
 
     const [existingUser] = await db
