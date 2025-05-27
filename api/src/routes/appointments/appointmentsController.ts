@@ -297,4 +297,36 @@ export async function changeStatus(req: Request, res: Response): Promise<any> {
         console.error('Error updating appointment status:', error);
         res.status(500).json({ error: 'Failed to update appointment status' });
     }
+
 }
+
+    /**
+ * @swagger
+ * /appointments:
+ *   get:
+ *     summary: Get all appointments
+ *     tags: [Appointments]
+ *     responses:
+ *       200:
+ *         description: Appointments retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Appointment'
+ *       500:
+ *         description: Server error
+ */
+    export async function getAllAppointments(
+      req: Request,
+      res: Response
+    ): Promise<any> {
+      try {
+        const appointments = await db.query.appointments.findMany();
+        res.json(appointments);
+      } catch (error) {
+        console.error("Error fetching all appointments:", error);
+        res.status(500).json({ error: "Failed to fetch all appointments" });
+      }
+    }

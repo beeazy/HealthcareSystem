@@ -4,10 +4,10 @@ import { patients, doctors, appointments, medicalRecords } from './schema';
 async function seed() {
   try {
     // Clear existing data
-    await db.delete(medicalRecords);
-    await db.delete(appointments);
-    await db.delete(doctors);
-    await db.delete(patients);
+    // await db.delete(medicalRecords);
+    // await db.delete(appointments);
+    // await db.delete(doctors);
+    // await db.delete(patients);
 
     // Insert test patients
     const [patient1, patient2, patient3, patient4, patient5] = await db.insert(patients).values([
@@ -108,46 +108,46 @@ async function seed() {
     ]).returning();
 
     // Insert test appointments across different dates
-    const today = new Date();
-    const appointmentsData = [
-      {
-        patientId: patient1.id,
-        doctorId: doctor1.id,
-        appointmentDate: new Date(today.setHours(10, 0, 0, 0)),
-        status: 'scheduled',
-        notes: 'Follow-up for diabetes management',
-      },
-      {
-        patientId: patient2.id,
-        doctorId: doctor2.id,
-        appointmentDate: new Date(today.setHours(14, 30, 0, 0)),
-        status: 'scheduled',
-        notes: 'Child vaccination schedule',
-      },
-      {
-        patientId: patient3.id,
-        doctorId: doctor3.id,
-        appointmentDate: new Date(today.setDate(today.getDate() + 1)),
-        status: 'scheduled',
-        notes: 'Cardiac consultation',
-      },
-      {
-        patientId: patient4.id,
-        doctorId: doctor4.id,
-        appointmentDate: new Date(today.setDate(today.getDate() + 2)),
-        status: 'scheduled',
-        notes: 'Neurological assessment',
-      },
-      {
-        patientId: patient5.id,
-        doctorId: doctor5.id,
-        appointmentDate: new Date(today.setDate(today.getDate() - 1)),
-        status: 'completed',
-        notes: 'Regular checkup',
-      }
-    ];
+    // const today = new Date();
+    // const appointmentsData = [
+    //   {
+    //     patientId: patient1.id,
+    //     doctorId: doctor1.id,
+    //     appointmentDate: new Date(today.setHours(10, 0, 0, 0)),
+    //     status: 'scheduled',
+    //     notes: 'Follow-up for diabetes management',
+    //   },
+    //   {
+    //     patientId: patient2.id,
+    //     doctorId: doctor2.id,
+    //     appointmentDate: new Date(today.setHours(14, 30, 0, 0)),
+    //     status: 'scheduled',
+    //     notes: 'Child vaccination schedule',
+    //   },
+    //   {
+    //     patientId: patient3.id,
+    //     doctorId: doctor3.id,
+    //     appointmentDate: new Date(today.setDate(today.getDate() + 1)),
+    //     status: 'scheduled',
+    //     notes: 'Cardiac consultation',
+    //   },
+    //   {
+    //     patientId: patient4.id,
+    //     doctorId: doctor4.id,
+    //     appointmentDate: new Date(today.setDate(today.getDate() + 2)),
+    //     status: 'scheduled',
+    //     notes: 'Neurological assessment',
+    //   },
+    //   {
+    //     patientId: patient5.id,
+    //     doctorId: doctor5.id,
+    //     appointmentDate: new Date(today.setDate(today.getDate() - 1)),
+    //     status: 'completed',
+    //     notes: 'Regular checkup',
+    //   }
+    // ];
 
-    await db.insert(appointments).values(appointmentsData);
+    // await db.insert(appointments).values(appointmentsData);
 
     // Insert test medical records
     await db.insert(medicalRecords).values([

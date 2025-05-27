@@ -32,6 +32,18 @@ interface AuthResponse {
   }
 }
 
+interface StatsResponse {
+  totalPatients: number
+  totalDoctors: number
+  appointmentsToday: number
+  availableDoctors: number
+  topSpecializations: string[]
+  appointmentsByMonth: {
+    months: string[]
+    counts: number[]
+  }
+}
+
 export const authApi = {
   login: async (data: LoginInput): Promise<AuthResponse> => {
     const response = await fetch(`${API_URL}/auth/login`, {
@@ -90,5 +102,26 @@ export const authApi = {
 
   isAuthenticated: () => {
     return !!localStorage.getItem("token")
+  }
+}
+
+export const statsApi = {
+  getStats: async (): Promise<StatsResponse> => {
+    const token = authApi.getToken()
+    if (!token) {
+      throw new Error("Not authenticated")
+    }
+
+    const response = await fetch(`${API_URL}/stats`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch stats")
+    }
+
+    return response.json()
   }
 } 
