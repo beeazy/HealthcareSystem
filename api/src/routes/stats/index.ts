@@ -1,4 +1,4 @@
-import { Router, RequestHandler } from "express";
+import { Router } from "express";
 import { getTotalPatients, getTotalDoctors, getAppointmentsToday, getAvailableDoctors, getTopSpecializations, getAppointmentsByMonth } from "./statsController";
 import { db } from "../../db";
 import { patients, doctors, appointments } from "../../db/schema";
@@ -7,12 +7,12 @@ import { eq, and, gte, lte, sql, count, desc } from "drizzle-orm";
 const router = Router();
 
 // Individual stat endpoints
-router.get('/total-patients', getTotalPatients as RequestHandler);
-router.get('/total-doctors', getTotalDoctors as RequestHandler);
-router.get('/appointments-today', getAppointmentsToday as RequestHandler);
-router.get('/available-doctors', getAvailableDoctors as RequestHandler);
-router.get('/top-specializations', getTopSpecializations as RequestHandler);
-router.get('/appointments-by-month', getAppointmentsByMonth as RequestHandler);
+router.get('/total-patients', getTotalPatients);
+router.get('/total-doctors', getTotalDoctors);
+router.get('/appointments-today', getAppointmentsToday);
+router.get('/available-doctors', getAvailableDoctors);
+router.get('/top-specializations', getTopSpecializations);
+router.get('/appointments-by-month', getAppointmentsByMonth);
 
 // Combined stats endpoint
 router.get('/', (async (req, res) => {

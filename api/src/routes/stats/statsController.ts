@@ -3,7 +3,7 @@ import { db } from "../../db";
 import { patients, doctors, appointments, medicalRecords } from "../../db/schema";
 import { eq, and, gte, lte, sql, count, desc } from "drizzle-orm";
 
-export async function getTotalPatients(req: Request, res: Response): Promise<void> {
+export async function getTotalPatients(req: Request, res: Response): Promise<any> {
     try {
         const [{ value }] = await db
             .select({ value: count() })
@@ -16,7 +16,7 @@ export async function getTotalPatients(req: Request, res: Response): Promise<voi
     }
 }
 
-export async function getTotalDoctors(req: Request, res: Response): Promise<void> {
+export async function getTotalDoctors(req: Request, res: Response): Promise<any> {
     try {
         const [{ value }] = await db
             .select({ value: count() })
@@ -30,7 +30,7 @@ export async function getTotalDoctors(req: Request, res: Response): Promise<void
     }
 }
 
-export async function getAppointmentsToday(req: Request, res: Response): Promise<void> {
+export async function getAppointmentsToday(req: Request, res: Response): Promise<any> {
     try {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -54,7 +54,7 @@ export async function getAppointmentsToday(req: Request, res: Response): Promise
     }
 }
 
-export async function getAvailableDoctors(req: Request, res: Response): Promise<void> {
+export async function getAvailableDoctors(req: Request, res: Response): Promise<any> {
     try {
         const [{ value }] = await db
             .select({ value: count() })
@@ -73,7 +73,7 @@ export async function getAvailableDoctors(req: Request, res: Response): Promise<
     }
 }
 
-export async function getTopSpecializations(req: Request, res: Response): Promise<void> {
+export async function getTopSpecializations(req: Request, res: Response): Promise<any> {
     try {
         const specializations = await db
             .select({
@@ -95,7 +95,7 @@ export async function getTopSpecializations(req: Request, res: Response): Promis
     }
 }
 
-export async function getAppointmentsByMonth(req: Request, res: Response): Promise<void> {
+export async function getAppointmentsByMonth(req: Request, res: Response): Promise<any> {
     try {
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
