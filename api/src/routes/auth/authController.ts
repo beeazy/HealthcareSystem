@@ -6,9 +6,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod/v4';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || '';
+const ADMIN_CREATION_KEY = process.env.ADMIN_CREATION_KEY;
 
-// Validation schemas
 export const loginSchema = z.object({
   email: z.email(),
   password: z.string().min(6)
@@ -19,11 +19,20 @@ export const createUserSchema = z.object({
   password: z.string().min(6),
   firstName: z.string(),
   lastName: z.string(),
-  role: z.enum(['admin', 'doctor']),
+  role: z.enum(['admin', 'doctor'], {
+    message: "Invalid role"
+  }),
   // Additional fields for doctors
-  phone: z.string().optional(),
+  phone: z.string().check(
+    z.minLength(8, { message: "Phone number must be at least 8 characters long" }),
+  ).optional(),
   specialization: z.string().optional(),
   licenseNumber: z.string().optional(),
+}).strict();
+
+// Special admin creation schema
+export const createAdminSchema = createUserSchema.extend({
+  adminKey: z.string().min(1)
 });
 
 // Token generation
@@ -71,7 +80,7 @@ export const login = async (req: Request, res: Response): Promise<any> => {
 // Create user handler (admin only)
 export const createUser = async (req: Request, res: Response): Promise<any> => {
   try {
-    const { email, password, firstName, lastName, role, phone, specialization, licenseNumber } = req.body;
+    const { email, password, firstName, lastName, role, phone, specialization, licenseNumber } = createUserSchema.parse(req.body);
 
     // Check if user already exists
     const [existingUser] = await db
@@ -145,7 +154,7 @@ export const createUser = async (req: Request, res: Response): Promise<any> => {
       res.status(500).json({ error: 'Internal server error' });
     }
   }
-}; 
+};
 
 export const getUsers = async (req: Request, res: Response): Promise<any> => {
   try {
@@ -153,6 +162,56 @@ export const getUsers = async (req: Request, res: Response): Promise<any> => {
     res.json(allUsers);
   } catch (error) {
     console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const createAdmin = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { adminKey, ...userData } = createAdminSchema.parse(req.body);
+
+    if (!ADMIN_CREATION_KEY || adminKey !== ADMIN_CREATION_KEY) {
+      return res.status(403).json({ error: 'Invalid admin creation key' });
+    }
+
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, userData.email));
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(userData.password, 10);
+
+    // Create admin user
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        ...userData,
+        password: hashedPassword,
+        role: 'admin', 
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+
+    const token = generateToken(newUser);
+    const { password: _, ...userWithoutPassword } = newUser;
+
+    res.status(201).json({ 
+      user: userWithoutPassword, 
+      token
+    });
+  } catch (error) {
+    console.error('Create admin error:', error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ 
+        error: 'Some fields are missing'
+      });
+    }
     res.status(500).json({ error: 'Internal server error' });
   }
 };

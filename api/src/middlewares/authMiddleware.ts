@@ -41,7 +41,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): a
 
 export const isAdmin = (req: Request, res: Response, next: NextFunction): any => {
   if (req.user?.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
+    return res.status(403).json({ error: 'Unauthorized' });
   }
   next();
 };
@@ -55,7 +55,7 @@ export const isActiveDoctor = async (req: Request, res: Response, next: NextFunc
 
     // Check if user is a doctor
     if (req.user?.role !== 'doctor') {
-      return res.status(403).json({ error: 'Doctor access required' });
+      return res.status(403).json({ error: 'Unauthorized' });
     }
 
     // Check if the doctor is active
@@ -65,7 +65,7 @@ export const isActiveDoctor = async (req: Request, res: Response, next: NextFunc
       .where(eq(doctors.email, req.user.email));
 
     if (!doctor || !doctor.isActive) {
-      return res.status(403).json({ error: 'Doctor account is not active' });
+      return res.status(403).json({ error: 'Unauthorized' });
     }
 
     next();

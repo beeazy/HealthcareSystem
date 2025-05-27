@@ -1,7 +1,7 @@
 import { pgTable, serial, varchar, timestamp, integer, boolean, text } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
-    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    id: serial('id').primaryKey(),
     email: varchar('email', { length: 255 }).notNull().unique(),
     password: varchar('password', { length: 255 }).notNull(),
     firstName: varchar('first_name', { length: 100 }).notNull(),
@@ -13,7 +13,7 @@ export const users = pgTable('users', {
 });
 
 export const patients = pgTable('patients', {
-    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    id: serial('id').primaryKey(),
     fullName: varchar('full_name', { length: 100 }).notNull(),
     dateOfBirth: timestamp('date_of_birth').notNull(),
     gender: varchar('gender', { length: 10 }).notNull(),
@@ -25,7 +25,7 @@ export const patients = pgTable('patients', {
 });
 
 export const doctors = pgTable('doctors', {
-    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    id: serial('id').primaryKey(),
     firstName: varchar('first_name', { length: 100 }).notNull(),
     lastName: varchar('last_name', { length: 100 }).notNull(),
     email: varchar('email', { length: 255 }).notNull().unique(),
@@ -39,7 +39,7 @@ export const doctors = pgTable('doctors', {
 });
 
 export const appointments = pgTable('appointments', {
-    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    id: serial('id').primaryKey(),
     patientId: integer('patient_id').references(() => patients.id).notNull(),
     doctorId: integer('doctor_id').references(() => doctors.id).notNull(),
     appointmentDate: timestamp('appointment_date').notNull(),

@@ -6,6 +6,7 @@ import recordsRouter from "./routes/records/index";
 import statsRouter from "./routes/stats/index";
 import './db';  // This will initialize the database connection
 import { config } from 'dotenv';
+import authRouter from "./routes/auth/index";
 config();
 
 const port = process.env.PORT || 3000;
@@ -24,6 +25,7 @@ app.use('/doctors', doctorsRouter);
 app.use('/appointments', appointmentsRouter);
 app.use('/records', recordsRouter);
 app.use('/stats', statsRouter);
+app.use('/auth', authRouter);
 
 app.listen(port, () => {
     // console.log(`Server is running on port ${port}`);
