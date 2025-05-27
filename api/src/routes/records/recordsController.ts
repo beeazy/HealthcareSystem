@@ -4,6 +4,33 @@ import { medicalRecords, patients, doctors } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod/v4';
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     MedicalRecord:
+ *       type: object
+ *       required:
+ *         - patientId
+ *         - doctorId
+ *         - diagnosis
+ *       properties:
+ *         patientId:
+ *           type: integer
+ *           description: ID of the patient
+ *         doctorId:
+ *           type: integer
+ *           description: ID of the doctor
+ *         diagnosis:
+ *           type: string
+ *           description: Medical diagnosis
+ *         prescription:
+ *           type: string
+ *           description: Prescribed medication
+ *         notes:
+ *           type: string
+ *           description: Additional medical notes
+ */
 
 const medicalRecordSchema = z.object({
     patientId: z.number().int().positive(),
@@ -13,6 +40,30 @@ const medicalRecordSchema = z.object({
     notes: z.string().optional(),
 }).strict();
 
+/**
+ * @swagger
+ * /records:
+ *   post:
+ *     summary: Add a new medical record
+ *     tags: [Medical Records]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/MedicalRecord'
+ *     responses:
+ *       201:
+ *         description: Medical record created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/MedicalRecord'
+ *       404:
+ *         description: Patient or doctor not found
+ *       500:
+ *         description: Server error
+ */
 export async function addMedicalRecord(req: Request, res: Response): Promise<any> {
     try {
         const validatedData = medicalRecordSchema.parse(req.body);
@@ -50,6 +101,31 @@ export async function addMedicalRecord(req: Request, res: Response): Promise<any
     }
 }
 
+/**
+ * @swagger
+ * /records/{id}:
+ *   get:
+ *     summary: Get a specific medical record
+ *     tags: [Medical Records]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Medical record ID
+ *     responses:
+ *       200:
+ *         description: Medical record retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/MedicalRecord'
+ *       404:
+ *         description: Medical record not found
+ *       500:
+ *         description: Server error
+ */
 export async function viewSpecificMedicalRecord(req: Request, res: Response): Promise<any> {
     try {
         const { id } = req.params;
@@ -78,6 +154,33 @@ export async function viewSpecificMedicalRecord(req: Request, res: Response): Pr
     }
 }
 
+/**
+ * @swagger
+ * /patients/{patientId}/records:
+ *   get:
+ *     summary: Get all medical records for a patient
+ *     tags: [Medical Records]
+ *     parameters:
+ *       - in: path
+ *         name: patientId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Patient ID
+ *     responses:
+ *       200:
+ *         description: List of medical records retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/MedicalRecord'
+ *       404:
+ *         description: Patient not found
+ *       500:
+ *         description: Server error
+ */
 export async function viewAllRecordsForAPatient(req: Request, res: Response): Promise<any> {
     try {
         const { patientId } = req.params;
@@ -101,21 +204,3 @@ export async function viewAllRecordsForAPatient(req: Request, res: Response): Pr
         res.status(500).json({ error: 'Failed to fetch patient records' });
     }
 }
-
-
-// Medical Records
-// Endpoints:
-
-// POST /records – Add medical record for a patient.
-
-// GET /records/:id – View specific medical record.
-
-// GET /patients/:id/records – View all records for a patient.
-
-// Data Fields:
-
-// Diagnosis, notes, prescriptions, linked to appointment ID.
-
-// Security:
-
-// Role-based access (e.g. only assigned doctor and patient can view).

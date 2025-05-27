@@ -13,12 +13,97 @@ const patientSchema = z.object({
     insuranceNumber: z.string().min(2).max(100),
 }).strict();
 
+/**
+ * @swagger
+ * /patients:
+ *   get:
+ *     tags:
+ *       - Patients
+ *     summary: Get all patients
+ *     description: Retrieve a list of all patients in the system
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of patients retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Patient'
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 export async function getPatients(req: Request, res: Response): Promise<any> {
 
     const patients = await db.query.patients.findMany();
     res.send(patients);
 };
 
+/**
+ * @swagger
+ * /patients:
+ *   post:
+ *     tags:
+ *       - Patients
+ *     summary: Add a new patient
+ *     description: Create a new patient record in the system
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - fullName
+ *               - dateOfBirth
+ *               - gender
+ *               - contactInfo
+ *               - insuranceProvider
+ *               - insuranceNumber
+ *             properties:
+ *               fullName:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               dateOfBirth:
+ *                 type: string
+ *                 format: date
+ *               gender:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               contactInfo:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               insuranceProvider:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               insuranceNumber:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *     responses:
+ *       201:
+ *         description: Patient created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Patient'
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 export async function addPatient(req: Request, res: Response): Promise<any> {
     const { success, data, error } = patientSchema.safeParse(req.body);
     if (!success) {
@@ -37,6 +122,69 @@ export async function addPatient(req: Request, res: Response): Promise<any> {
     res.send(patient);
 };
 
+/**
+ * @swagger
+ * /patients/{id}:
+ *   put:
+ *     tags:
+ *       - Patients
+ *     summary: Update patient details
+ *     description: Update an existing patient's information
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Patient ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullName:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               dateOfBirth:
+ *                 type: string
+ *                 format: date
+ *               gender:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               contactInfo:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               insuranceProvider:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               insuranceNumber:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *     responses:
+ *       200:
+ *         description: Patient updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Patient'
+ *       400:
+ *         description: Validation error or invalid patient ID
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Patient not found
+ *       500:
+ *         description: Server error
+ */
 export async function updatePatient(req: Request, res: Response): Promise<any> {
     const { id } = req.params;
     const { success, data, error } = patientSchema.partial().safeParse(req.body);
@@ -47,6 +195,44 @@ export async function updatePatient(req: Request, res: Response): Promise<any> {
     res.send(patient);
 };
 
+/**
+ * @swagger
+ * /patients/{id}:
+ *   delete:
+ *     tags:
+ *       - Patients
+ *     summary: Delete a patient
+ *     description: Permanently remove a patient from the system
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Patient ID
+ *     responses:
+ *       200:
+ *         description: Patient deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 patient:
+ *                   $ref: '#/components/schemas/Patient'
+ *       400:
+ *         description: Invalid patient ID
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Patient not found
+ *       500:
+ *         description: Server error
+ */
 export async function deletePatient(req: Request, res: Response): Promise<any> {
     try {
         const { id } = req.params;
@@ -80,26 +266,3 @@ export async function deletePatient(req: Request, res: Response): Promise<any> {
     }
 }
 
-
-// Patient Management
-// Endpoints:
-
-// POST /patients – Register a new patient.
-
-// GET /patients/:id – Retrieve patient profile.
-
-// PUT /patients/:id – Update patient details.
-
-// DELETE /patients/:id – Soft-delete or deactivate a patient.
-
-// Data Fields:
-
-// Full name, Date of birth, Gender, Contact info
-
-// Patient ID (auto-generated)
-
-// Insurance provider, insurance number
-
-// Security:
-
-// Basic authentication + authorization.
