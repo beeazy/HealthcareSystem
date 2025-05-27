@@ -4,7 +4,7 @@ import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import { doctors } from '../db/schema';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || '';
 
 declare global {
   namespace Express {
@@ -46,41 +46,26 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction): any =>
   next();
 };
 
-export const isDoctor = (req: Request, res: Response, next: NextFunction): any => {
-  if (req.user?.role !== 'doctor') {
-    return res.status(403).json({ error: 'Doctor access required' });
-  }
-  next();
-};
-
-export const hasDoctorAccess = async (req: Request, res: Response, next: NextFunction) => {
+export const isActiveDoctor = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   try {
+    // Admins have full access
     if (req.user?.role === 'admin') {
       return next();
     }
 
+    // Check if user is a doctor
     if (req.user?.role !== 'doctor') {
       return res.status(403).json({ error: 'Doctor access required' });
     }
 
-    const doctorId = req.params.doctorId || req.body.doctorId;
-    if (!doctorId) {
-      return res.status(400).json({ error: 'Doctor ID is required' });
-    }
-
-    // Check if the doctor exists and is active
+    // Check if the doctor is active
     const [doctor] = await db
       .select()
       .from(doctors)
-      .where(eq(doctors.id, doctorId));
+      .where(eq(doctors.email, req.user.email));
 
     if (!doctor || !doctor.isActive) {
-      return res.status(404).json({ error: 'Doctor not found or inactive' });
-    }
-
-    // Check if the requesting user is the doctor
-    if (doctor.email !== req.user.email) {
-      return res.status(403).json({ error: 'Access denied to this resource' });
+      return res.status(403).json({ error: 'Doctor account is not active' });
     }
 
     next();

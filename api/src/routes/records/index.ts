@@ -1,12 +1,15 @@
 import { Router } from "express";
 import { addMedicalRecord, viewSpecificMedicalRecord, viewAllRecordsForAPatient } from "./recordsController";
+import { authenticate, isActiveDoctor } from "../../middlewares/authMiddleware";
 
 const router = Router();
 
-router.post('/', addMedicalRecord);
+router.use(authenticate);
 
-router.get('/:id', viewSpecificMedicalRecord);
+router.post('/', isActiveDoctor, addMedicalRecord);
 
-router.get('/patients/:id/records', viewAllRecordsForAPatient);
+router.get('/:id', isActiveDoctor, viewSpecificMedicalRecord);
+
+router.get('/patients/:id/records', isActiveDoctor, viewAllRecordsForAPatient);
 
 export default router;

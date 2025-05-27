@@ -1,14 +1,22 @@
 import { Router } from "express";
 import { getPatients, addPatient, updatePatient, deletePatient } from "./patientsController";
+import { authenticate, isAdmin, isActiveDoctor } from "../../middlewares/authMiddleware";
 
 const router = Router();
 
-router.get('/', getPatients);
+// All routes require authentication
+router.use(authenticate);
 
-router.post('/', addPatient);
+// GET - Admins and active doctors can view patients
+router.get('/', isActiveDoctor, getPatients);
 
-router.put('/:id', updatePatient);
+// POST - Only active doctors can add patients
+router.post('/', isActiveDoctor, addPatient);
 
-router.delete('/:id', deletePatient);
+// PUT - Only active doctors can update patients
+router.put('/:id', isActiveDoctor, updatePatient);
+
+// DELETE - Only admins can delete patients
+router.delete('/:id', isAdmin, deletePatient);
 
 export default router;

@@ -1,13 +1,16 @@
 import { Router } from "express";
 import { scheduleAppointment, viewSchedule, changeStatus } from "./appointmentsController";
+import { authenticate, isAdmin } from "../../middlewares/authMiddleware";
 
 const router = Router();
 
-router.post('/', scheduleAppointment);
+router.use(authenticate);
 
-router.get('/', viewSchedule);
+router.post('/', isAdmin, scheduleAppointment);
 
-router.put('/:id/status', changeStatus);
+router.get('/', isAdmin, viewSchedule);
+
+router.put('/:id/status', isAdmin, changeStatus);
 
 export default router;
 
