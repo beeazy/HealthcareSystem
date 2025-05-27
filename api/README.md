@@ -2,97 +2,20 @@
 
 A healthcare management system API built with Express.js, TypeScript, and PostgreSQL.
 
-## Quick Start
+## Table of Contents
+- [Setup Instructions](#setup-instructions)
+- [API Documentation](#api-documentation)
+- [Database Schema](#database-schema)
+- [Sequence Diagrams](#sequence-diagrams)
 
-1. Install dependencies:
-```bash
-npm install
-```
+## Setup Instructions
 
-2. Create a `.env` file:
-```env
-DATABASE_URL="postgresql://localhost:5432/healthcare_db"
-PORT=3000
-NODE_ENV=development
-```
-
-3. Create and setup database:
-```bash
-# Create database
-createdb healthcare_db
-
-# Generate and run migrations
-npm run generate
-npm run migrate
-
-# Add test data
-npm run seed
-```
-
-4. Start the server:
-```bash
-npm run dev
-```
-
-## Available Commands
-
-- `npm run dev` - Start development server
-- `npm run generate` - Generate database migrations
-- `npm run migrate` - Run database migrations
-- `npm run seed` - Add test data
-- `npm run studio` - Open database management UI
-
-## API Endpoints
-
-### Patients
-- `GET /patients` - Get all patients
-- `GET /patients/:id` - Get patient by ID
-- `POST /patients` - Create new patient
-- `PUT /patients/:id` - Update patient
-- `DELETE /patients/:id` - Delete patient
-
-### Doctors
-- `GET /doctors` - Get all doctors
-- `GET /doctors/:id` - Get doctor by ID
-- `POST /doctors` - Create new doctor
-- `PUT /doctors/:id` - Update doctor
-- `DELETE /doctors/:id` - Delete doctor
-
-### Appointments
-- `GET /appointments` - Get all appointments
-- `GET /appointments/:id` - Get appointment by ID
-- `POST /appointments` - Create new appointment
-- `PUT /appointments/:id` - Update appointment
-- `DELETE /appointments/:id` - Delete appointment
-
-### Medical Records
-- `GET /medical-records` - Get all medical records
-- `GET /medical-records/:id` - Get medical record by ID
-- `POST /medical-records` - Create new medical record
-- `PUT /medical-records/:id` - Update medical record
-- `DELETE /medical-records/:id` - Delete medical record
-
-### Stats
-- `GET /stats` - Get system statistics
-
-## Features
-
-- Patient management
-- Doctor management
-- Appointment scheduling
-- Medical records tracking
-- RESTful API endpoints
-- TypeScript for type safety
-- PostgreSQL database with Drizzle ORM
-- Environment-based configuration
-
-## Prerequisites
-
+### Prerequisites
 - Node.js (v18 or higher)
 - PostgreSQL (v14 or higher)
 - npm or yarn
 
-## Setup
+### Installation Steps
 
 1. Clone the repository:
 ```bash
@@ -110,17 +33,20 @@ npm install
 createdb healthcare_db
 ```
 
-4. Create a `.env` file in the root directory with the following configuration:
+4. Create a `.env` file in the root directory:
 ```env
 # Database Configuration
 DATABASE_URL="postgresql://localhost:5432/healthcare_db"
+
+# admin user creation
+ADMIN_CREATION_KEY="admin_user_creation_key"
 
 # Server Configuration
 PORT=3000
 NODE_ENV=development
 
 # JWT Configuration
-JWT_SECRET="your-super-secret-jwt-key"
+JWT_SECRET="secret-jwt-key"
 JWT_EXPIRES_IN="24h"
 
 # CORS Configuration
@@ -131,86 +57,221 @@ RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX=100
 ```
 
-5. Generate and apply database migrations:
+5. Initialize the database:
 ```bash
 # Generate migration files
 npm run generate
 
-# Apply migrations to the database
+# Apply migrations
 npm run migrate
+
+# Seed test data
+npm run seed
 ```
 
-6. Seed the database with test data:
+6. Start the development server:
 ```bash
-npm run seed
+npm run dev
+```
+
+## API Documentation
+
+### Authentication
+All API endpoints except `/auth/login` require a valid JWT token in the Authorization header:
+```
+Authorization: Bearer <token>
+```
+
+### Endpoints
+
+#### Authentication
+- `POST /auth/login`
+  - Request body: `{ email: string, password: string }`
+  - Response: `{ token: string, user: User }`
+
+#### Patients
+- `GET /patients`
+  - Query params: `page`, `limit`, `search`
+  - Response: `{ patients: Patient[], total: number }`
+
+- `GET /patients/:id`
+  - Response: `Patient`
+
+- `POST /patients`
+  - Request body: `PatientCreate`
+  - Response: `Patient`
+
+- `PUT /patients/:id`
+  - Request body: `PatientUpdate`
+  - Response: `Patient`
+
+- `DELETE /patients/:id`
+  - Response: `{ success: boolean }`
+
+#### Doctors
+- `GET /doctors`
+  - Query params: `page`, `limit`, `search`, `specialization`
+  - Response: `{ doctors: Doctor[], total: number }`
+
+- `GET /doctors/:id`
+  - Response: `Doctor`
+
+- `POST /doctors`
+  - Request body: `DoctorCreate`
+  - Response: `Doctor`
+
+- `PUT /doctors/:id`
+  - Request body: `DoctorUpdate`
+  - Response: `Doctor`
+
+- `DELETE /doctors/:id`
+  - Response: `{ success: boolean }`
+
+#### Appointments
+- `GET /appointments`
+  - Query params: `page`, `limit`, `patientId`, `doctorId`, `status`, `date`
+  - Response: `{ appointments: Appointment[], total: number }`
+
+- `GET /appointments/:id`
+  - Response: `Appointment`
+
+- `POST /appointments`
+  - Request body: `AppointmentCreate`
+  - Response: `Appointment`
+
+- `PUT /appointments/:id`
+  - Request body: `AppointmentUpdate`
+  - Response: `Appointment`
+
+- `DELETE /appointments/:id`
+  - Response: `{ success: boolean }`
+
+#### Medical Records
+- `GET /medical-records`
+  - Query params: `page`, `limit`, `patientId`, `doctorId`
+  - Response: `{ records: MedicalRecord[], total: number }`
+
+- `GET /medical-records/:id`
+  - Response: `MedicalRecord`
+
+- `POST /medical-records`
+  - Request body: `MedicalRecordCreate`
+  - Response: `MedicalRecord`
+
+- `PUT /medical-records/:id`
+  - Request body: `MedicalRecordUpdate`
+  - Response: `MedicalRecord`
+
+- `DELETE /medical-records/:id`
+  - Response: `{ success: boolean }`
+
+## Database Schema
+
+```mermaid
+erDiagram
+    users {
+        int id PK
+        string email
+        string password
+        string firstName
+        string lastName
+        string role
+        int doctorId FK
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    patients {
+        int id PK
+        string fullName
+        timestamp dateOfBirth
+        string gender
+        string contactInfo
+        string insuranceProvider
+        string insuranceNumber
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    doctors {
+        int id PK
+        string firstName
+        string lastName
+        string email
+        string phone
+        string specialization
+        string licenseNumber
+        boolean isAvailable
+        boolean isActive
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    appointments {
+        int id PK
+        int patientId FK
+        int doctorId FK
+        timestamp appointmentDate
+        string status
+        text notes
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    medical_records {
+        int id PK
+        int patientId FK
+        int doctorId FK
+        text diagnosis
+        text prescription
+        text notes
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    users ||--o| doctors : "has"
+    doctors ||--o{ appointments : "schedules"
+    patients ||--o{ appointments : "books"
+    doctors ||--o{ medical_records : "creates"
+    patients ||--o{ medical_records : "has"
+```
+
+## Sequence Diagrams
+
+### Appointment Booking Flow
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as API
+    participant D as Database
+
+    C->>A: POST /appointments
+    A->>D: Check doctor availability
+    D-->>A: Availability status
+    A->>D: Create appointment
+    D-->>A: Appointment created
+    A-->>C: Appointment details
+```
+
+### Medical Record Creation Flow
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as API
+    participant D as Database
+
+    C->>A: POST /medical-records
+    A->>D: Verify doctor and patient
+    D-->>A: Verification result
+    A->>D: Create medical record
+    D-->>A: Record created
+    A-->>C: Medical record details
 ```
 
 ## Available Scripts
 
-- `npm run dev` - Start the development server with hot reload
+- `npm run dev` - Start development server with hot reload
 - `npm run generate` - Generate database migration files
 - `npm run migrate` - Apply database migrations
-- `npm run seed` - Seed the database with test data
-- `npm run studio` - Open Drizzle Studio to manage database
-
-## Database Schema
-
-The system includes the following main entities:
-
-### Patients
-- Basic information (name, email, phone)
-- Date of birth
-- Gender
-- Medical history
-
-### Doctors
-- Basic information (name, email, phone)
-- Specialization
-- License number
-- Availability status
-
-### Appointments
-- Patient and doctor references
-- Appointment date and time
-- Status
-- Notes
-
-### Medical Records
-- Patient and doctor references
-- Diagnosis
-- Prescription
-- Notes
-
-## Development
-
-The project uses:
-- TypeScript for type safety
-- Express.js for the API framework
-- Drizzle ORM for database operations
-- PostgreSQL as the database
-- Environment variables for configuration
-
-## Project Structure
-
-```
-src/
-├── db/
-│   ├── index.ts      # Database connection
-│   ├── schema.ts     # Database schema
-│   └── seed.ts       # Seed data
-├── routes/
-│   └── stats/        # Stats endpoints
-└── index.ts          # Application entry point
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the ISC License. 
+- `npm run seed` - Seed database with test data
+- `npm run studio` - Open Drizzle Studio for database management

@@ -35,20 +35,59 @@ export const createAdminSchema = createUserSchema.extend({
   adminKey: z.string().min(1)
 });
 
-// Token generation
-const generateToken = (user: any) => {
-  return jwt.sign(
-    { 
-      userId: user.id, 
-      role: user.role,
-      email: user.email 
-    }, 
-    JWT_SECRET,
-    { expiresIn: '24h' }
-  );
-};
-
-// Login handler
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     tags:
+ *       - Authentication
+ *     summary: Login to the system
+ *     description: Authenticate a user and return a JWT token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: number
+ *                     email:
+ *                       type: string
+ *                     firstName:
+ *                       type: string
+ *                     lastName:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                       enum: [admin, doctor]
+ *                 token:
+ *                   type: string
+ *       401:
+ *         description: Invalid credentials
+ *       500:
+ *         description: Internal server error
+ */
 export const login = async (req: Request, res: Response): Promise<any> => {
   try {
     const { email, password } = req.body;
@@ -77,7 +116,60 @@ export const login = async (req: Request, res: Response): Promise<any> => {
   }
 };
 
-// Create user handler (admin only)
+/**
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     tags:
+ *       - Authentication
+ *     summary: Register a new user (Admin only)
+ *     description: Create a new user account (requires admin authentication)
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - firstName
+ *               - lastName
+ *               - role
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *                 enum: [admin, doctor]
+ *               phone:
+ *                 type: string
+ *               specialization:
+ *                 type: string
+ *               licenseNumber:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *       400:
+ *         description: Invalid input or user already exists
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       500:
+ *         description: Internal server error
+ */
 export const createUser = async (req: Request, res: Response): Promise<any> => {
   try {
     const { email, password, firstName, lastName, role, phone, specialization, licenseNumber } = createUserSchema.parse(req.body);
@@ -156,16 +248,49 @@ export const createUser = async (req: Request, res: Response): Promise<any> => {
   }
 };
 
-export const getUsers = async (req: Request, res: Response): Promise<any> => {
-  try {
-    const allUsers = await db.select().from(users);
-    res.json(allUsers);
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
+/**
+ * @swagger
+ * /auth/create-admin:
+ *   post:
+ *     tags:
+ *       - Authentication
+ *     summary: Create initial admin user
+ *     description: Create the first admin user with a special admin key
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - firstName
+ *               - lastName
+ *               - adminKey
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               adminKey:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Admin user created successfully
+ *       400:
+ *         description: Invalid input or user already exists
+ *       403:
+ *         description: Invalid admin key
+ *       500:
+ *         description: Internal server error
+ */
 export const createAdmin = async (req: Request, res: Response): Promise<any> => {
   try {
     const { adminKey, ...userData } = createAdminSchema.parse(req.body);
@@ -214,4 +339,67 @@ export const createAdmin = async (req: Request, res: Response): Promise<any> => 
     }
     res.status(500).json({ error: 'Internal server error' });
   }
+};
+
+/**
+ * @swagger
+ * /auth/users:
+ *   get:
+ *     tags:
+ *       - Authentication
+ *     summary: Get all users (Admin only)
+ *     description: Retrieve a list of all users in the system
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: number
+ *                   email:
+ *                     type: string
+ *                   firstName:
+ *                     type: string
+ *                   lastName:
+ *                     type: string
+ *                   role:
+ *                     type: string
+ *                   createdAt:
+ *                     type: string
+ *                     format: date-time
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       500:
+ *         description: Internal server error
+ */
+export const getUsers = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const allUsers = await db.select().from(users);
+    res.json(allUsers);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Token generation
+const generateToken = (user: any) => {
+  return jwt.sign(
+    { 
+      userId: user.id, 
+      role: user.role,
+      email: user.email 
+    }, 
+    JWT_SECRET,
+    { expiresIn: '24h' }
+  );
 };

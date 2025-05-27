@@ -4,6 +4,36 @@ import { appointments, doctors, patients } from '../../db/schema';
 import { eq, and, between, or, sql } from 'drizzle-orm';
 import { z } from 'zod/v4';
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Appointment:
+ *       type: object
+ *       required:
+ *         - patientId
+ *         - doctorId
+ *         - appointmentDate
+ *       properties:
+ *         patientId:
+ *           type: integer
+ *           description: ID of the patient
+ *         doctorId:
+ *           type: integer
+ *           description: ID of the doctor
+ *         appointmentDate:
+ *           type: string
+ *           format: date-time
+ *           description: Date and time of the appointment
+ *         notes:
+ *           type: string
+ *           description: Additional notes for the appointment
+ *         status:
+ *           type: string
+ *           enum: [scheduled, cancelled, completed]
+ *           description: Current status of the appointment
+ */
+
 // Validation schemas
 const appointmentSchema = z.object({
     patientId: z.number().int().positive(),
@@ -43,6 +73,32 @@ async function isTimeSlotAvailable(doctorId: number, appointmentDate: Date): Pro
     return overlappingAppointments.length === 0;
 }
 
+/**
+ * @swagger
+ * /appointments:
+ *   post:
+ *     summary: Schedule a new appointment
+ *     tags: [Appointments]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Appointment'
+ *     responses:
+ *       201:
+ *         description: Appointment scheduled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Appointment'
+ *       400:
+ *         description: Invalid request or time slot not available
+ *       404:
+ *         description: Patient or doctor not found
+ *       500:
+ *         description: Server error
+ */
 export async function scheduleAppointment(req: Request, res: Response): Promise<any> {
     try {
         const validatedData = appointmentSchema.parse(req.body);
@@ -103,6 +159,40 @@ export async function scheduleAppointment(req: Request, res: Response): Promise<
     }
 }
 
+/**
+ * @swagger
+ * /appointments:
+ *   get:
+ *     summary: View doctor's schedule for a specific date
+ *     tags: [Appointments]
+ *     parameters:
+ *       - in: query
+ *         name: doctorId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the doctor
+ *       - in: query
+ *         name: date
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Date to view schedule for
+ *     responses:
+ *       200:
+ *         description: Schedule retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Appointment'
+ *       400:
+ *         description: Invalid request parameters
+ *       500:
+ *         description: Server error
+ */
 export async function viewSchedule(req: Request, res: Response): Promise<any> {
     try {
         const { doctorId, date } = req.query;
@@ -132,6 +222,45 @@ export async function viewSchedule(req: Request, res: Response): Promise<any> {
     }
 }
 
+/**
+ * @swagger
+ * /appointments/{id}/status:
+ *   put:
+ *     summary: Update appointment status
+ *     tags: [Appointments]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Appointment ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [scheduled, cancelled, completed]
+ *     responses:
+ *       200:
+ *         description: Status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Appointment'
+ *       400:
+ *         description: Invalid request or status
+ *       404:
+ *         description: Appointment not found
+ *       500:
+ *         description: Server error
+ */
 export async function changeStatus(req: Request, res: Response): Promise<any> {
     try {
         const { id } = req.params;
@@ -168,24 +297,36 @@ export async function changeStatus(req: Request, res: Response): Promise<any> {
         console.error('Error updating appointment status:', error);
         res.status(500).json({ error: 'Failed to update appointment status' });
     }
+
 }
 
-
-// Appointment Scheduling
-// Endpoints:
-
-// POST /appointments – Schedule an appointment.
-
-// GET /appointments?doctorId=...&date=... – View schedule.
-
-// PUT /appointments/:id/status – Change status (booked, cancelled, completed).
-
-// Logic:
-
-// Prevent double-bookings (e.g., no overlapping appointments).
-
-// Validate doctor's schedule availability.
-
-// Models:
-
-// Patient ↔ Appointment ↔ Doctor (many-to-many with details).
+    /**
+ * @swagger
+ * /appointments:
+ *   get:
+ *     summary: Get all appointments
+ *     tags: [Appointments]
+ *     responses:
+ *       200:
+ *         description: Appointments retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Appointment'
+ *       500:
+ *         description: Server error
+ */
+    export async function getAllAppointments(
+      req: Request,
+      res: Response
+    ): Promise<any> {
+      try {
+        const appointments = await db.query.appointments.findMany();
+        res.json(appointments);
+      } catch (error) {
+        console.error("Error fetching all appointments:", error);
+        res.status(500).json({ error: "Failed to fetch all appointments" });
+      }
+    }

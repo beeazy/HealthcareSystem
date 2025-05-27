@@ -3,6 +3,27 @@ import { db } from "../../db";
 import { patients, doctors, appointments, medicalRecords } from "../../db/schema";
 import { eq, and, gte, lte, sql, count, desc } from "drizzle-orm";
 
+/**
+ * @swagger
+ * /stats/patients/total:
+ *   get:
+ *     tags:
+ *       - Statistics
+ *     summary: Get total number of patients
+ *     description: Retrieve the total count of patients in the system
+ *     responses:
+ *       200:
+ *         description: Total patient count retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 count:
+ *                   type: number
+ *       500:
+ *         description: Server error
+ */
 export async function getTotalPatients(req: Request, res: Response): Promise<any> {
     try {
         const [{ value }] = await db
@@ -16,6 +37,27 @@ export async function getTotalPatients(req: Request, res: Response): Promise<any
     }
 }
 
+/**
+ * @swagger
+ * /stats/doctors/total:
+ *   get:
+ *     tags:
+ *       - Statistics
+ *     summary: Get total number of active doctors
+ *     description: Retrieve the total count of active doctors in the system
+ *     responses:
+ *       200:
+ *         description: Total doctor count retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 count:
+ *                   type: number
+ *       500:
+ *         description: Server error
+ */
 export async function getTotalDoctors(req: Request, res: Response): Promise<any> {
     try {
         const [{ value }] = await db
@@ -30,6 +72,27 @@ export async function getTotalDoctors(req: Request, res: Response): Promise<any>
     }
 }
 
+/**
+ * @swagger
+ * /stats/appointments/today:
+ *   get:
+ *     tags:
+ *       - Statistics
+ *     summary: Get today's appointments count
+ *     description: Retrieve the count of appointments scheduled for today
+ *     responses:
+ *       200:
+ *         description: Today's appointments count retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 count:
+ *                   type: number
+ *       500:
+ *         description: Server error
+ */
 export async function getAppointmentsToday(req: Request, res: Response): Promise<any> {
     try {
         const today = new Date();
@@ -54,6 +117,27 @@ export async function getAppointmentsToday(req: Request, res: Response): Promise
     }
 }
 
+/**
+ * @swagger
+ * /stats/doctors/available:
+ *   get:
+ *     tags:
+ *       - Statistics
+ *     summary: Get count of available doctors
+ *     description: Retrieve the count of doctors who are both active and available
+ *     responses:
+ *       200:
+ *         description: Available doctors count retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 count:
+ *                   type: number
+ *       500:
+ *         description: Server error
+ */
 export async function getAvailableDoctors(req: Request, res: Response): Promise<any> {
     try {
         const [{ value }] = await db
@@ -73,6 +157,29 @@ export async function getAvailableDoctors(req: Request, res: Response): Promise<
     }
 }
 
+/**
+ * @swagger
+ * /stats/specializations/top:
+ *   get:
+ *     tags:
+ *       - Statistics
+ *     summary: Get top 5 specializations
+ *     description: Retrieve the top 5 most common doctor specializations
+ *     responses:
+ *       200:
+ *         description: Top specializations retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 specializations:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       500:
+ *         description: Server error
+ */
 export async function getTopSpecializations(req: Request, res: Response): Promise<any> {
     try {
         const specializations = await db
@@ -95,6 +202,33 @@ export async function getTopSpecializations(req: Request, res: Response): Promis
     }
 }
 
+/**
+ * @swagger
+ * /stats/appointments/monthly:
+ *   get:
+ *     tags:
+ *       - Statistics
+ *     summary: Get appointments by month
+ *     description: Retrieve appointment counts for the last 6 months
+ *     responses:
+ *       200:
+ *         description: Monthly appointments retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 months:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                 counts:
+ *                   type: array
+ *                   items:
+ *                     type: number
+ *       500:
+ *         description: Server error
+ */
 export async function getAppointmentsByMonth(req: Request, res: Response): Promise<any> {
     try {
         const sixMonthsAgo = new Date();

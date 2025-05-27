@@ -16,6 +16,26 @@ const doctorSchema = z.object({
     isActive: z.boolean().optional(),
 }).strict();
 
+/**
+ * @swagger
+ * /doctors:
+ *   get:
+ *     tags:
+ *       - Doctors
+ *     summary: Get all active doctors
+ *     description: Retrieve a list of all active doctors in the system
+ *     responses:
+ *       200:
+ *         description: List of doctors retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Doctor'
+ *       500:
+ *         description: Server error
+ */
 export async function getDoctors(req: Request, res: Response) {
     try {
         const allDoctors = await db.query.doctors.findMany({
@@ -28,7 +48,36 @@ export async function getDoctors(req: Request, res: Response) {
     }
 }
 
-export async function getDoctorById(req: Request, res: Response) {
+/**
+ * @swagger
+ * /doctors/{id}:
+ *   get:
+ *     tags:
+ *       - Doctors
+ *     summary: Get doctor by ID
+ *     description: Retrieve a specific doctor's details by their ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Doctor ID
+ *     responses:
+ *       200:
+ *         description: Doctor details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Doctor'
+ *       400:
+ *         description: Invalid doctor ID
+ *       404:
+ *         description: Doctor not found
+ *       500:
+ *         description: Server error
+ */
+export async function getDoctorById(req: Request, res: Response): Promise<any> {
     try {
         const { id } = req.params;
         const doctorId = Number(id);
@@ -52,6 +101,32 @@ export async function getDoctorById(req: Request, res: Response) {
     }
 }
 
+/**
+ * @swagger
+ * /doctors:
+ *   post:
+ *     tags:
+ *       - Doctors
+ *     summary: Add a new doctor
+ *     description: Create a new doctor record in the system
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/DoctorInput'
+ *     responses:
+ *       201:
+ *         description: Doctor created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Doctor'
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: Server error
+ */
 export async function addDoctor(req: Request, res: Response): Promise<any> {
     try {
         const validatedData = doctorSchema.parse(req.body);
@@ -78,6 +153,41 @@ export async function addDoctor(req: Request, res: Response): Promise<any> {
     }
 }
 
+/**
+ * @swagger
+ * /doctors/{id}:
+ *   put:
+ *     tags:
+ *       - Doctors
+ *     summary: Update doctor details
+ *     description: Update an existing doctor's information
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Doctor ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/DoctorInput'
+ *     responses:
+ *       200:
+ *         description: Doctor updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Doctor'
+ *       400:
+ *         description: Invalid input or doctor ID
+ *       404:
+ *         description: Doctor not found
+ *       500:
+ *         description: Server error
+ */
 export async function updateDoctor(req: Request, res: Response): Promise<any> {
     try {
         const { id } = req.params;
@@ -115,7 +225,41 @@ export async function updateDoctor(req: Request, res: Response): Promise<any> {
     }
 }
 
-export async function deleteDoctor(req: Request, res: Response) {
+/**
+ * @swagger
+ * /doctors/{id}/deactivate:
+ *   put:
+ *     tags:
+ *       - Doctors
+ *     summary: Deactivate a doctor
+ *     description: Soft delete a doctor by setting isActive to false
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Doctor ID
+ *     responses:
+ *       200:
+ *         description: Doctor deactivated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 doctor:
+ *                   $ref: '#/components/schemas/Doctor'
+ *       400:
+ *         description: Invalid doctor ID or doctor has appointments
+ *       404:
+ *         description: Doctor not found
+ *       500:
+ *         description: Server error
+ */
+export async function deactivateDoctor(req: Request, res: Response): Promise<any> {
     try {
         const { id } = req.params;
         const doctorId = Number(id);
@@ -147,30 +291,11 @@ export async function deleteDoctor(req: Request, res: Response) {
         }
 
         res.json({ 
-            message: 'Doctor deleted successfully',
+            message: 'Doctor deactivated successfully',
             doctor: deletedDoctor
         });
     } catch (error) {
-        console.error('Error deleting doctor:', error);
-        res.status(500).json({ error: 'Failed to delete doctor' });
+        console.error('Error deactivating doctor:', error);
+        res.status(500).json({ error: 'Failed to deactivate doctor' });
     }
 }
-
-// Doctor Management
-// Endpoints:
-
-// POST /doctors – Add a new doctor.
-
-// GET /doctors/:id – View doctor profile.
-
-// PUT /doctors/:id – Edit profile/schedule.
-
-// Data Fields:
-
-// Name, Specialty, Contact
-
-// Schedule availability (e.g. Mon–Fri, 9 AM–5 PM)
-
-// Availability Model:
-
-// Store time blocks available for appointments.

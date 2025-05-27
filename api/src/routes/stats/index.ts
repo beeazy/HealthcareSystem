@@ -3,7 +3,7 @@ import { getTotalPatients, getTotalDoctors, getAppointmentsToday, getAvailableDo
 import { db } from "../../db";
 import { patients, doctors, appointments } from "../../db/schema";
 import { eq, and, gte, lte, sql, count, desc } from "drizzle-orm";
-
+import { authenticate } from '../../middlewares/authMiddleware';
 const router = Router();
 
 // Individual stat endpoints
@@ -15,7 +15,7 @@ router.get('/top-specializations', getTopSpecializations);
 router.get('/appointments-by-month', getAppointmentsByMonth);
 
 // Combined stats endpoint
-router.get('/', (async (req, res) => {
+router.get('/', authenticate, (async (req, res) => {
     try {
         // Create a new response object for each stat
         const stats = {
