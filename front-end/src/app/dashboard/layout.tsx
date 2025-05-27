@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard" },
-  { name: "Patients", href: "/dashboard/patients" },
-  { name: "Appointments", href: "/dashboard/appointments" },
-  { name: "Staff", href: "/dashboard/staff" },
+  { name: "Doctors", href: "/doctors" },
+  { name: "Patients", href: "/patients" },
+  { name: "Appointments", href: "/appointments" },
 ]
 
 export default function DashboardLayout({
