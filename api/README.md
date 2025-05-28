@@ -3,10 +3,42 @@
 A healthcare management system API built with Express.js, TypeScript, and PostgreSQL.
 
 ## Table of Contents
+- [System Overview](#system-overview)
 - [Setup Instructions](#setup-instructions)
 - [API Documentation](#api-documentation)
 - [Database Schema](#database-schema)
 - [Sequence Diagrams](#sequence-diagrams)
+
+## System Overview
+
+This healthcare system provides core functionality for appointment scheduling and patient management. The system is designed with simplicity and security in mind.
+
+### Core Features
+1. **User Management**
+   - Automatic patient registration for new users
+   - Admin-controlled doctor account creation
+   - Role-based access control (patient, doctor, admin)
+
+2. **Appointment Scheduling**
+   - Book appointments with available doctors
+   - Prevent scheduling conflicts
+   - Track appointment status
+   - Manage doctor availability
+
+3. **Patient Management**
+   - Store basic patient information
+   - Track insurance details
+   - View appointment history
+
+4. **Doctor Management**
+   - Maintain doctor profiles
+   - Track specializations
+   - Manage availability
+
+5. **Medical Records** (Optional)
+   - Store patient medical history
+   - Link records to appointments
+   - Secure access control
 
 ## Setup Instructions
 
@@ -38,7 +70,7 @@ createdb healthcare_db
 # Database Configuration
 DATABASE_URL="postgresql://localhost:5432/healthcare_db"
 
-# admin user creation
+# Admin Configuration
 ADMIN_CREATION_KEY="admin_user_creation_key"
 
 # Server Configuration
@@ -77,7 +109,7 @@ npm run dev
 ## API Documentation
 
 ### Authentication
-All API endpoints except `/auth/login` require a valid JWT token in the Authorization header:
+All API endpoints except `/auth/login` and `/auth/register` require a valid JWT token in the Authorization header:
 ```
 Authorization: Bearer <token>
 ```
@@ -85,55 +117,40 @@ Authorization: Bearer <token>
 ### Endpoints
 
 #### Authentication
+- `POST /auth/register`
+  - Request body: `{ email: string, password: string, firstName: string, lastName: string }`
+  - Response: `{ token: string, user: User }`
+  - Note: Creates a patient account by default
+
 - `POST /auth/login`
   - Request body: `{ email: string, password: string }`
   - Response: `{ token: string, user: User }`
 
-#### Patients
-- `GET /patients`
-  - Query params: `page`, `limit`, `search`
-  - Response: `{ patients: Patient[], total: number }`
+#### Users
+- `GET /users/me`
+  - Response: `User`
 
-- `GET /patients/:id`
-  - Response: `Patient`
+- `PUT /users/me`
+  - Request body: `UserUpdate`
+  - Response: `User`
 
-- `POST /patients`
-  - Request body: `PatientCreate`
-  - Response: `Patient`
-
-- `PUT /patients/:id`
-  - Request body: `PatientUpdate`
-  - Response: `Patient`
-
-- `DELETE /patients/:id`
-  - Response: `{ success: boolean }`
-
-#### Doctors
-- `GET /doctors`
-  - Query params: `page`, `limit`, `search`, `specialization`
-  - Response: `{ doctors: Doctor[], total: number }`
-
-- `GET /doctors/:id`
-  - Response: `Doctor`
-
+#### Doctors (Admin Only)
 - `POST /doctors`
   - Request body: `DoctorCreate`
   - Response: `Doctor`
+
+- `GET /doctors`
+  - Query params: `page`, `limit`, `search`, `specialization`
+  - Response: `{ doctors: Doctor[], total: number }`
 
 - `PUT /doctors/:id`
   - Request body: `DoctorUpdate`
   - Response: `Doctor`
 
-- `DELETE /doctors/:id`
-  - Response: `{ success: boolean }`
-
 #### Appointments
 - `GET /appointments`
-  - Query params: `page`, `limit`, `patientId`, `doctorId`, `status`, `date`
+  - Query params: `page`, `limit`, `status`, `date`
   - Response: `{ appointments: Appointment[], total: number }`
-
-- `GET /appointments/:id`
-  - Response: `Appointment`
 
 - `POST /appointments`
   - Request body: `AppointmentCreate`
@@ -143,27 +160,14 @@ Authorization: Bearer <token>
   - Request body: `AppointmentUpdate`
   - Response: `Appointment`
 
-- `DELETE /appointments/:id`
-  - Response: `{ success: boolean }`
-
-#### Medical Records
+#### Medical Records (Optional)
 - `GET /medical-records`
-  - Query params: `page`, `limit`, `patientId`, `doctorId`
+  - Query params: `page`, `limit`
   - Response: `{ records: MedicalRecord[], total: number }`
-
-- `GET /medical-records/:id`
-  - Response: `MedicalRecord`
 
 - `POST /medical-records`
   - Request body: `MedicalRecordCreate`
   - Response: `MedicalRecord`
-
-- `PUT /medical-records/:id`
-  - Request body: `MedicalRecordUpdate`
-  - Response: `MedicalRecord`
-
-- `DELETE /medical-records/:id`
-  - Response: `{ success: boolean }`
 
 ## Database Schema
 
@@ -175,34 +179,29 @@ erDiagram
         string password
         string firstName
         string lastName
-        string role
-        int doctorId FK
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    patients {
-        int id PK
-        string fullName
-        timestamp dateOfBirth
-        string gender
-        string contactInfo
-        string insuranceProvider
-        string insuranceNumber
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    doctors {
-        int id PK
-        string firstName
-        string lastName
-        string email
+        enum role
         string phone
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    doctor_profiles {
+        int id PK
+        int userId FK
         string specialization
         string licenseNumber
         boolean isAvailable
-        boolean isActive
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    patient_profiles {
+        int id PK
+        int userId FK
+        timestamp dateOfBirth
+        string gender
+        string insuranceProvider
+        string insuranceNumber
         timestamp createdAt
         timestamp updatedAt
     }
@@ -212,7 +211,7 @@ erDiagram
         int patientId FK
         int doctorId FK
         timestamp appointmentDate
-        string status
+        enum status
         text notes
         timestamp createdAt
         timestamp updatedAt
@@ -222,6 +221,7 @@ erDiagram
         int id PK
         int patientId FK
         int doctorId FK
+        int appointmentId FK
         text diagnosis
         text prescription
         text notes
@@ -229,14 +229,29 @@ erDiagram
         timestamp updatedAt
     }
 
-    users ||--o| doctors : "has"
-    doctors ||--o{ appointments : "schedules"
-    patients ||--o{ appointments : "books"
-    doctors ||--o{ medical_records : "creates"
-    patients ||--o{ medical_records : "has"
+    users ||--o| doctor_profiles : "has"
+    users ||--o| patient_profiles : "has"
+    users ||--o{ appointments : "books"
+    users ||--o{ medical_records : "has"
+    appointments ||--o{ medical_records : "has"
 ```
 
 ## Sequence Diagrams
+
+### User Registration Flow
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as API
+    participant D as Database
+
+    C->>A: POST /auth/register
+    A->>D: Create user (role: patient)
+    D-->>A: User created
+    A->>D: Create patient profile
+    D-->>A: Profile created
+    A-->>C: User with token
+```
 
 ### Appointment Booking Flow
 ```mermaid
@@ -251,21 +266,6 @@ sequenceDiagram
     A->>D: Create appointment
     D-->>A: Appointment created
     A-->>C: Appointment details
-```
-
-### Medical Record Creation Flow
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant A as API
-    participant D as Database
-
-    C->>A: POST /medical-records
-    A->>D: Verify doctor and patient
-    D-->>A: Verification result
-    A->>D: Create medical record
-    D-->>A: Record created
-    A-->>C: Medical record details
 ```
 
 ## Available Scripts
