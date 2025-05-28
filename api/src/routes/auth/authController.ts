@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../../db';
 import { users, patientProfiles, doctorProfiles } from '../../db/schema';
-import { RegisterInput, LoginInput, CreateDoctorInput, createDoctorSchema } from './auth.schema';
+import { RegisterInput, LoginInput, CreateDoctorInput, createDoctorSchema, registerSchema } from './auth.schema';
 import { hash, compare } from 'bcrypt';
 import { sign, SignOptions } from 'jsonwebtoken';
 import { eq } from 'drizzle-orm';
@@ -20,7 +20,7 @@ export const createAdminSchema = z.object({
 
 export async function register(req: Request<{}, {}, RegisterInput>, res: Response): Promise<any> {
     try {
-        const { email, password, fullName } = req.body;
+        const { email, password, fullName } = registerSchema.parse(req.body);
 
         const existingUser = await db.query.users.findFirst({
             where: eq(users.email, email),
