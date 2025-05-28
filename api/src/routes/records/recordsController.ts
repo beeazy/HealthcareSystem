@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../../db';
-import { medicalRecords, patients, doctors } from '../../db/schema';
-import { eq } from 'drizzle-orm';
+import { medicalRecords, users, doctorProfiles } from '../../db/schema';
+import { eq, and } from 'drizzle-orm';
 import { z } from 'zod/v4';
 
 /**
@@ -17,10 +17,10 @@ import { z } from 'zod/v4';
  *       properties:
  *         patientId:
  *           type: integer
- *           description: ID of the patient
+ *           description: ID of the patient user
  *         doctorId:
  *           type: integer
- *           description: ID of the doctor
+ *           description: ID of the doctor user
  *         diagnosis:
  *           type: string
  *           description: Medical diagnosis
@@ -46,6 +46,8 @@ const medicalRecordSchema = z.object({
  *   post:
  *     summary: Add a new medical record
  *     tags: [Medical Records]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -59,31 +61,43 @@ const medicalRecordSchema = z.object({
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/MedicalRecord'
+ *       400:
+ *         description: Validation error in request body
+ *       401:
+ *         description: Unauthorized - Authentication required
  *       404:
  *         description: Patient or doctor not found
  *       500:
- *         description: Server error
+ *         description: Internal server error
  */
 export async function addMedicalRecord(req: Request, res: Response): Promise<any> {
     try {
         const validatedData = medicalRecordSchema.parse(req.body);
         
-        // Validate patient exists
-        const patient = await db.query.patients.findFirst({
-            where: eq(patients.id, validatedData.patientId)
+        // Validate patient exists and is a patient
+        const patient = await db.query.users.findFirst({
+            where: and(
+                eq(users.id, validatedData.patientId),
+                eq(users.role, 'patient')
+            )
         });
 
         if (!patient) {
-            return res.status(404).json({ error: 'Patient not found' });
+            res.status(404).json({ error: 'Patient not found' });
+            return;
         }
 
-        // Validate doctor exists
-        const doctor = await db.query.doctors.findFirst({
-            where: eq(doctors.id, validatedData.doctorId)
+        // Check if doctor exists and is available
+        const doctor = await db.query.users.findFirst({
+            where: eq(users.id, validatedData.doctorId),
+            with: {
+                doctorProfile: true
+            }
         });
 
-        if (!doctor || !doctor.isActive) {
-            return res.status(404).json({ error: 'Doctor not found' });
+        if (!doctor || !doctor.doctorProfile || !doctor.doctorProfile.isActive) {
+            res.status(404).json({ error: 'Doctor not found or not available' });
+            return;
         }
         
         const [newRecord] = await db.insert(medicalRecords)
@@ -96,6 +110,14 @@ export async function addMedicalRecord(req: Request, res: Response): Promise<any
 
         res.status(201).json(newRecord);
     } catch (error) {
+        if (error instanceof z.ZodError) {
+            res.status(400).json({ 
+                error: 'Validation error', 
+                details: error 
+            });
+            return;
+        }
+        
         console.error('Error adding medical record:', error);
         res.status(500).json({ error: 'Failed to add medical record' });
     }
@@ -107,12 +129,15 @@ export async function addMedicalRecord(req: Request, res: Response): Promise<any
  *   get:
  *     summary: Get a specific medical record
  *     tags: [Medical Records]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: Medical record ID
  *     responses:
  *       200:
@@ -121,10 +146,14 @@ export async function addMedicalRecord(req: Request, res: Response): Promise<any
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/MedicalRecord'
+ *       400:
+ *         description: Invalid record ID format
+ *       401:
+ *         description: Unauthorized - Authentication required
  *       404:
  *         description: Medical record not found
  *       500:
- *         description: Server error
+ *         description: Internal server error
  */
 export async function viewSpecificMedicalRecord(req: Request, res: Response): Promise<any> {
     try {
@@ -132,19 +161,29 @@ export async function viewSpecificMedicalRecord(req: Request, res: Response): Pr
         const recordId = Number(id);
         
         if (isNaN(recordId)) {
-            return res.status(400).json({ error: 'Invalid record ID' });
+            res.status(400).json({ error: 'Invalid record ID' });
+            return;
         }
 
         const record = await db.query.medicalRecords.findFirst({
             where: eq(medicalRecords.id, recordId),
             with: {
-                patient: true,
-                doctor: true
+                patient: {
+                    with: {
+                        patientProfile: true
+                    }
+                },
+                doctor: {
+                    with: {
+                        doctorProfile: true
+                    }
+                }
             }
         });
 
         if (!record) {
-            return res.status(404).json({ error: 'Medical record not found' });
+            res.status(404).json({ error: 'Medical record not found' });
+            return;
         }
 
         res.json(record);
@@ -160,13 +199,16 @@ export async function viewSpecificMedicalRecord(req: Request, res: Response): Pr
  *   get:
  *     summary: Get all medical records for a patient
  *     tags: [Medical Records]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: patientId
  *         required: true
  *         schema:
  *           type: integer
- *         description: Patient ID
+ *           minimum: 1
+ *         description: Patient user ID
  *     responses:
  *       200:
  *         description: List of medical records retrieved successfully
@@ -176,10 +218,14 @@ export async function viewSpecificMedicalRecord(req: Request, res: Response): Pr
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/MedicalRecord'
+ *       400:
+ *         description: Invalid patient ID format
+ *       401:
+ *         description: Unauthorized - Authentication required
  *       404:
  *         description: Patient not found
  *       500:
- *         description: Server error
+ *         description: Internal server error
  */
 export async function viewAllRecordsForAPatient(req: Request, res: Response): Promise<any> {
     try {
@@ -187,13 +233,31 @@ export async function viewAllRecordsForAPatient(req: Request, res: Response): Pr
         const id = Number(patientId);
         
         if (isNaN(id)) {
-            return res.status(400).json({ error: 'Invalid patient ID' });
+            res.status(400).json({ error: 'Invalid patient ID' });
+            return;
+        }
+
+        // Verify patient exists
+        const patient = await db.query.users.findFirst({
+            where: and(
+                eq(users.id, id),
+                eq(users.role, 'patient')
+            )
+        });
+
+        if (!patient) {
+            res.status(404).json({ error: 'Patient not found' });
+            return;
         }
 
         const records = await db.query.medicalRecords.findMany({
             where: eq(medicalRecords.patientId, id),
             with: {
-                doctor: true
+                doctor: {
+                    with: {
+                        doctorProfile: true
+                    }
+                }
             },
             orderBy: (records, { desc }) => [desc(records.createdAt)]
         });

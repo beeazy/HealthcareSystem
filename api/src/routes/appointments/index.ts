@@ -1,18 +1,17 @@
-import { Router } from "express";
+import { Router, RequestHandler } from "express";
 import { scheduleAppointment, viewSchedule, changeStatus, getAllAppointments } from "./appointmentsController";
-import { authenticate, isAdmin } from "../../middlewares/authMiddleware";
+import { authenticate, isAdmin, isPatient } from "../../middlewares/authMiddleware";
 
 const router = Router();
 
-router.use(authenticate);
+router.use(authenticate as RequestHandler);
 
-router.post('/', isAdmin, scheduleAppointment);
+router.post('/', isPatient as RequestHandler, scheduleAppointment as RequestHandler);
 
-router.get('/', isAdmin, viewSchedule);
+router.get('/schedule', isAdmin as RequestHandler, viewSchedule as RequestHandler);
+router.put('/:id/status', isAdmin as RequestHandler, changeStatus as RequestHandler);
 
-router.put('/:id/status', isAdmin, changeStatus);
-
-router.get('/', getAllAppointments);
+router.get('/', getAllAppointments as RequestHandler);
 
 export default router;
 

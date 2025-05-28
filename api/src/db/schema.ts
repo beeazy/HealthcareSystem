@@ -1,4 +1,5 @@
 import { pgTable, serial, varchar, timestamp, integer, boolean, text, pgEnum } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
 
 // Enums for better type safety
 export const userRoleEnum = pgEnum('user_role', ['patient', 'doctor', 'admin']);
@@ -9,8 +10,7 @@ export const users = pgTable('users', {
     id: serial('id').primaryKey(),
     email: varchar('email', { length: 255 }).notNull().unique(),
     password: varchar('password', { length: 255 }).notNull(),
-    firstName: varchar('first_name', { length: 100 }).notNull(),
-    lastName: varchar('last_name', { length: 100 }).notNull(),
+    fullName: varchar('full_name', { length: 255 }).notNull(),
     role: userRoleEnum('role').notNull().default('patient'),
     phone: varchar('phone', { length: 20 }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -23,10 +23,29 @@ export const doctorProfiles = pgTable('doctor_profiles', {
     userId: integer('user_id').references(() => users.id).notNull().unique(),
     specialization: varchar('specialization', { length: 100 }).notNull(),
     licenseNumber: varchar('license_number', { length: 50 }).notNull().unique(),
-    isAvailable: boolean('is_available').default(true),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    isActive: boolean('is_active').default(true),
 });
+
+// Define relations
+export const usersRelations = relations(users, ({ one }) => ({
+    doctorProfile: one(doctorProfiles, {
+        fields: [users.id],
+        references: [doctorProfiles.userId],
+    }),
+    patientProfile: one(patientProfiles, {
+        fields: [users.id],
+        references: [patientProfiles.userId],
+    }),
+}));
+
+export const doctorProfilesRelations = relations(doctorProfiles, ({ one }) => ({
+    user: one(users, {
+        fields: [doctorProfiles.userId],
+        references: [users.id],
+    }),
+}));
 
 // Patient profiles - additional info for users with patient role
 export const patientProfiles = pgTable('patient_profiles', {
@@ -39,6 +58,13 @@ export const patientProfiles = pgTable('patient_profiles', {
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+export const patientProfilesRelations = relations(patientProfiles, ({ one }) => ({
+    user: one(users, {
+        fields: [patientProfiles.userId],
+        references: [users.id],
+    }),
+}));
 
 // Appointments
 export const appointments = pgTable('appointments', {

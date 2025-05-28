@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "../../db";
-import { patients, doctors, appointments, medicalRecords } from "../../db/schema";
+import { users, doctorProfiles, patientProfiles, appointments, medicalRecords } from "../../db/schema";
 import { eq, and, gte, lte, sql, count, desc } from "drizzle-orm";
 
 /**
@@ -28,7 +28,8 @@ export async function getTotalPatients(req: Request, res: Response): Promise<any
     try {
         const [{ value }] = await db
             .select({ value: count() })
-            .from(patients);
+            .from(users)
+            .where(eq(users.role, 'patient'));
         
         res.json({ count: value });
     } catch (error) {
@@ -62,8 +63,13 @@ export async function getTotalDoctors(req: Request, res: Response): Promise<any>
     try {
         const [{ value }] = await db
             .select({ value: count() })
-            .from(doctors)
-            .where(eq(doctors.isActive, true));
+            .from(users)
+            .where(
+                and(
+                    eq(users.role, 'doctor'),
+                    eq(doctorProfiles.isActive, true)
+                )
+            );
         
         res.json({ count: value });
     } catch (error) {
@@ -142,11 +148,11 @@ export async function getAvailableDoctors(req: Request, res: Response): Promise<
     try {
         const [{ value }] = await db
             .select({ value: count() })
-            .from(doctors)
+            .from(users)
             .where(
                 and(
-                    eq(doctors.isActive, true),
-                    eq(doctors.isAvailable, true)
+                    eq(users.role, 'doctor'),
+                    eq(doctorProfiles.isActive, true)
                 )
             );
         
@@ -184,12 +190,18 @@ export async function getTopSpecializations(req: Request, res: Response): Promis
     try {
         const specializations = await db
             .select({
-                specialization: doctors.specialization,
+                specialization: doctorProfiles.specialization,
                 count: count()
             })
-            .from(doctors)
-            .where(eq(doctors.isActive, true))
-            .groupBy(doctors.specialization)
+            .from(users)
+            .innerJoin(doctorProfiles, eq(users.id, doctorProfiles.userId))
+            .where(
+                and(
+                    eq(users.role, 'doctor'),
+                    eq(doctorProfiles.isActive, true)
+                )
+            )
+            .groupBy(doctorProfiles.specialization)
             .orderBy(desc(count()))
             .limit(5);
 
@@ -251,5 +263,160 @@ export async function getAppointmentsByMonth(req: Request, res: Response): Promi
     } catch (error) {
         console.error('Error fetching appointments by month:', error);
         res.status(500).json({ error: 'Failed to fetch appointments by month' });
+    }
+}
+
+/**
+ * @swagger
+ * /stats/patients/insurance:
+ *   get:
+ *     tags:
+ *       - Statistics
+ *     summary: Get insurance coverage statistics
+ *     description: Get breakdown of patients by insurance provider (NHIF, Private, Self-pay)
+ */
+export async function getInsuranceStats(req: Request, res: Response): Promise<any> {
+    try {
+        const insuranceStats = await db
+            .select({
+                provider: patientProfiles.insuranceProvider,
+                count: count()
+            })
+            .from(users)
+            .innerJoin(patientProfiles, eq(users.id, patientProfiles.userId))
+            .where(eq(users.role, 'patient'))
+            .groupBy(patientProfiles.insuranceProvider);
+
+        res.json({
+            insuranceBreakdown: insuranceStats.map(stat => ({
+                provider: stat.provider || 'Self-pay',
+                count: Number(stat.count)
+            }))
+        });
+    } catch (error) {
+        console.error('Error fetching insurance stats:', error);
+        res.status(500).json({ error: 'Failed to fetch insurance statistics' });
+    }
+}
+
+/**
+ * @swagger
+ * /stats/appointments/peak-hours:
+ *   get:
+ *     tags:
+ *       - Statistics
+ *     summary: Get peak appointment hours
+ *     description: Get appointment distribution by hour of day
+ */
+export async function getPeakHours(req: Request, res: Response): Promise<any> {
+    try {
+        const peakHours = await db
+            .select({
+                hour: sql<number>`EXTRACT(HOUR FROM ${appointments.appointmentDate})`,
+                count: count()
+            })
+            .from(appointments)
+            .where(
+                and(
+                    gte(appointments.appointmentDate, sql`CURRENT_DATE - INTERVAL '30 days'`),
+                    eq(appointments.status, 'scheduled')
+                )
+            )
+            .groupBy(sql`EXTRACT(HOUR FROM ${appointments.appointmentDate})`)
+            .orderBy(sql`EXTRACT(HOUR FROM ${appointments.appointmentDate})`);
+
+        res.json({
+            peakHours: peakHours.map(hour => ({
+                hour: Number(hour.hour),
+                count: Number(hour.count)
+            }))
+        });
+    } catch (error) {
+        console.error('Error fetching peak hours:', error);
+        res.status(500).json({ error: 'Failed to fetch peak hours' });
+    }
+}
+
+/**
+ * @swagger
+ * /stats/doctors/workload:
+ *   get:
+ *     tags:
+ *       - Statistics
+ *     summary: Get doctor workload
+ *     description: Get number of appointments per doctor for the last 30 days
+ */
+export async function getDoctorWorkload(req: Request, res: Response): Promise<any> {
+    try {
+        const workload = await db
+            .select({
+                doctorName: users.fullName,
+                specialization: doctorProfiles.specialization,
+                appointmentCount: count()
+            })
+            .from(appointments)
+            .innerJoin(users, eq(appointments.doctorId, users.id))
+            .innerJoin(doctorProfiles, eq(users.id, doctorProfiles.userId))
+            .where(
+                and(
+                    gte(appointments.appointmentDate, sql`CURRENT_DATE - INTERVAL '30 days'`),
+                    eq(appointments.status, 'scheduled')
+                )
+            )
+            .groupBy(users.fullName, doctorProfiles.specialization)
+            .orderBy(desc(count()));
+
+        res.json({
+            workload: workload.map(w => ({
+                doctorName: w.doctorName,
+                specialization: w.specialization,
+                appointmentCount: Number(w.appointmentCount)
+            }))
+        });
+    } catch (error) {
+        console.error('Error fetching doctor workload:', error);
+        res.status(500).json({ error: 'Failed to fetch doctor workload' });
+    }
+}
+
+/**
+ * @swagger
+ * /stats/patients/age-groups:
+ *   get:
+ *     tags:
+ *       - Statistics
+ *     summary: Get patient age distribution
+ *     description: Get breakdown of patients by age groups
+ */
+export async function getAgeGroups(req: Request, res: Response): Promise<any> {
+    try {
+        const ageGroups = await db
+            .select({
+                ageGroup: sql<string>`
+                    CASE 
+                        WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, ${patientProfiles.dateOfBirth}::date)) < 18 THEN 'Under 18'
+                        WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, ${patientProfiles.dateOfBirth}::date)) < 30 THEN '18-29'
+                        WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, ${patientProfiles.dateOfBirth}::date)) < 45 THEN '30-44'
+                        WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, ${patientProfiles.dateOfBirth}::date)) < 60 THEN '45-59'
+                        ELSE '60+'
+                    END
+                `,
+                count: count()
+            })
+            .from(users)
+            .innerJoin(patientProfiles, eq(users.id, patientProfiles.userId))
+            .where(eq(users.role, 'patient'))
+            .groupBy(sql`ageGroup`)
+            .orderBy(sql`ageGroup`);
+
+        res.json({
+            ageGroups: ageGroups.map(group => ({
+                ageGroup: group.ageGroup,
+                count: Number(group.count)
+            }))
+        });
+    } catch (error) {
+        console.error('Error fetching age groups:', error);
+        res.status(500).json({ error: 'Failed to fetch age groups' });
     }
 }

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../../db';
-import { appointments, doctors, patients } from '../../db/schema';
+import { appointments, doctorProfiles, patientProfiles } from '../../db/schema';
 import { eq, and, between, or, sql } from 'drizzle-orm';
 import { z } from 'zod/v4';
 
@@ -38,7 +38,20 @@ import { z } from 'zod/v4';
 const appointmentSchema = z.object({
     patientId: z.number().int().positive(),
     doctorId: z.number().int().positive(),
-    appointmentDate: z.string().transform(str => new Date(str)),
+    appointmentDate: z.string()
+        .transform(str => new Date(str))
+        .refine(date => date > new Date(), {
+            message: "Appointment date must be in the future"
+        })
+        .refine(date => {
+            const hours = date.getHours();
+            const minutes = date.getMinutes();
+            // Only allow appointments between 9 AM and 5 PM
+            return (hours > 9 || (hours === 9 && minutes >= 0)) && 
+                   (hours < 17 || (hours === 17 && minutes === 0));
+        }, {
+            message: "Appointments are only available between 9 AM and 5 PM"
+        }),
     notes: z.string().optional(),
 }).strict();
 
@@ -46,12 +59,12 @@ const statusSchema = z.enum(['scheduled', 'cancelled', 'completed']);
 
 // Helper function to check if a time slot is available
 async function isTimeSlotAvailable(doctorId: number, appointmentDate: Date): Promise<boolean> {
-    // Check if doctor is available
-    const doctor = await db.query.doctors.findFirst({
-        where: eq(doctors.id, doctorId)
+    // Check if doctor is active
+    const doctor = await db.query.doctorProfiles.findFirst({
+        where: eq(doctorProfiles.userId, doctorId)
     });
 
-    if (!doctor?.isAvailable || !doctor?.isActive) {
+    if (!doctor?.isActive) {
         return false;
     }
 
@@ -104,25 +117,25 @@ export async function scheduleAppointment(req: Request, res: Response): Promise<
         const validatedData = appointmentSchema.parse(req.body);
         
         // Validate patient exists
-        const patient = await db.query.patients.findFirst({
-            where: eq(patients.id, validatedData.patientId)
+        const patient = await db.query.patientProfiles.findFirst({
+            where: eq(patientProfiles.userId, validatedData.patientId)
         });
 
         if (!patient) {
             return res.status(404).json({ error: 'Patient not found' });
         }
 
-        // Validate doctor exists and is available
-        const doctor = await db.query.doctors.findFirst({
-            where: eq(doctors.id, validatedData.doctorId)
+        // Validate doctor exists and is active
+        const doctor = await db.query.doctorProfiles.findFirst({
+            where: eq(doctorProfiles.userId, validatedData.doctorId)
         });
 
         if (!doctor) {
             return res.status(404).json({ error: 'Doctor not found' });
         }
 
-        if (!doctor.isAvailable) {
-            return res.status(400).json({ error: 'Doctor is not available for appointments' });
+        if (!doctor.isActive) {
+            return res.status(400).json({ error: 'Doctor is not active' });
         }
 
         // Check if time slot is available
@@ -199,6 +212,19 @@ export async function viewSchedule(req: Request, res: Response): Promise<any> {
         
         if (!doctorId || !date) {
             return res.status(400).json({ error: 'Doctor ID and date are required' });
+        }
+
+        // Check if doctor exists and is active
+        const doctor = await db.query.doctorProfiles.findFirst({
+            where: eq(doctorProfiles.userId, Number(doctorId))
+        });
+
+        if (!doctor) {
+            return res.status(404).json({ error: 'Doctor not found' });
+        }
+
+        if (!doctor.isActive) {
+            return res.status(400).json({ error: 'Doctor is not active' });
         }
 
         const startDate = new Date(date as string);
