@@ -177,8 +177,7 @@ erDiagram
         int id PK
         string email
         string password
-        string firstName
-        string lastName
+        string fullName
         enum role
         string phone
         timestamp createdAt
@@ -190,7 +189,7 @@ erDiagram
         int userId FK
         string specialization
         string licenseNumber
-        boolean isAvailable
+        boolean isActive
         timestamp createdAt
         timestamp updatedAt
     }
@@ -198,7 +197,7 @@ erDiagram
     patient_profiles {
         int id PK
         int userId FK
-        timestamp dateOfBirth
+        string dateOfBirth
         string gender
         string insuranceProvider
         string insuranceNumber
@@ -235,6 +234,13 @@ erDiagram
     users ||--o{ medical_records : "has"
     appointments ||--o{ medical_records : "has"
 ```
+
+### Schema Notes
+- Users table is the single source of truth for all user types (patients, doctors, admins)
+- Doctor availability is determined by appointment scheduling, not a static flag
+- Doctor profiles have an isActive flag for admin-controlled deactivation
+- Patient profiles store insurance information for NHIF and private insurance tracking
+- All timestamps are in UTC
 
 ## Sequence Diagrams
 
