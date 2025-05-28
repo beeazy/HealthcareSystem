@@ -3,7 +3,7 @@ import { db } from '../../db';
 import { users, patientProfiles, doctorProfiles } from '../../db/schema';
 import { RegisterInput, LoginInput, CreateDoctorInput, createDoctorSchema, registerSchema } from './auth.schema';
 import { hash, compare } from 'bcrypt';
-import { sign, SignOptions } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod/v4';
 
@@ -18,6 +18,59 @@ export const createAdminSchema = z.object({
   adminKey: z.string().min(1)
 });
 
+/**
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     tags:
+ *       - Authentication
+ *     summary: Register a new patient
+ *     description: Create a new patient account with the provided credentials
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - fullName
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *               fullName:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Patient registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     fullName:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *       400:
+ *         description: User already exists
+ *       500:
+ *         description: Internal server error
+ */
 export async function register(req: Request<{}, {}, RegisterInput>, res: Response): Promise<any> {
     try {
         const { email, password, fullName } = registerSchema.parse(req.body);
@@ -46,10 +99,10 @@ export async function register(req: Request<{}, {}, RegisterInput>, res: Respons
             gender: '',
         });
 
-        const token = sign(
+        const token = jwt.sign(
             { userId: user.id, role: user.role },
             JWT_SECRET,
-            { expiresIn: '24h' } as SignOptions
+            { expiresIn: '24h' }
         );
 
         res.status(201).json({
@@ -67,6 +120,55 @@ export async function register(req: Request<{}, {}, RegisterInput>, res: Respons
     }
 }
 
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     tags:
+ *       - Authentication
+ *     summary: Login user
+ *     description: Authenticate user and return JWT token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     fullName:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *       401:
+ *         description: Invalid credentials
+ *       500:
+ *         description: Internal server error
+ */
 export async function login(req: Request<{}, {}, LoginInput>, res: Response): Promise<any> {
     try {
         const { email, password } = req.body;
@@ -87,10 +189,10 @@ export async function login(req: Request<{}, {}, LoginInput>, res: Response): Pr
             return;
         }
 
-        const token = sign(
+        const token = jwt.sign(
             { userId: user.id, role: user.role },
             JWT_SECRET,
-            { expiresIn: '24h' } as SignOptions
+            { expiresIn: '24h' }
         );
 
         res.json({
@@ -108,6 +210,68 @@ export async function login(req: Request<{}, {}, LoginInput>, res: Response): Pr
     }
 }
 
+/**
+ * @swagger
+ * /auth/doctor:
+ *   post:
+ *     tags:
+ *       - Authentication
+ *     summary: Create a new doctor account
+ *     description: Create a new doctor account with the provided credentials and professional details
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - fullName
+ *               - phone
+ *               - specialization
+ *               - licenseNumber
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *               fullName:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               specialization:
+ *                 type: string
+ *               licenseNumber:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Doctor created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     fullName:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *       400:
+ *         description: User already exists
+ *       500:
+ *         description: Internal server error
+ */
 export async function createDoctor(req: Request<{}, {}, CreateDoctorInput>, res: Response): Promise<any> {
     try {
         const { email, password, fullName, phone, specialization, licenseNumber } = createDoctorSchema.parse(req.body);
@@ -179,10 +343,10 @@ export async function createAdmin(req: Request<{}, {}, z.infer<typeof createAdmi
             fullName: `${userData.firstName} ${userData.lastName}`,
         }).returning();
 
-        const token = sign(
+        const token = jwt.sign(
             { userId: newUser.id, role: newUser.role },
             JWT_SECRET,
-            { expiresIn: '24h' } as SignOptions
+            { expiresIn: '24h' }
         );
 
         res.status(201).json({

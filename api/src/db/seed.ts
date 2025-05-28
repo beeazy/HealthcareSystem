@@ -1,153 +1,208 @@
 import { db } from './index';
-import { patients, doctors, appointments, medicalRecords } from './schema';
+import { users, doctorProfiles, patientProfiles, appointments, medicalRecords } from './schema';
+import { hash } from 'bcrypt';
 
 async function seed() {
   try {
     // Clear existing data
-    // await db.delete(medicalRecords);
-    // await db.delete(appointments);
-    // await db.delete(doctors);
-    // await db.delete(patients);
+    await db.delete(medicalRecords);
+    await db.delete(appointments);
+    await db.delete(doctorProfiles);
+    await db.delete(patientProfiles);
+    await db.delete(users);
 
     // Insert test patients
-    const [patient1, patient2, patient3, patient4, patient5] = await db.insert(patients).values([
+    const [patient1, patient2, patient3, patient4, patient5] = await db.insert(users).values([
       {
+        email: 'kamau.njoroge@example.com',
+        password: await hash('password123', 10),
         fullName: 'Kamau Njoroge',
-        dateOfBirth: new Date('1985-06-15'),
-        gender: 'male',
-        contactInfo: '0722334455',
-        insuranceProvider: 'AIA',
-        insuranceNumber: '1234567890',
+        role: 'patient',
+        phone: '0722334455',
       },
       {
+        email: 'wanjiku.muthoni@example.com',
+        password: await hash('password123', 10),
         fullName: 'Wanjiku Muthoni',
-        dateOfBirth: new Date('1990-03-20'),
-        gender: 'female',
-        contactInfo: '0722334455',
-        insuranceProvider: 'AIA',
+        role: 'patient',
+        phone: '0722334455',
+      },
+      {
+        email: 'john.doe@example.com',
+        password: await hash('password123', 10),
+        fullName: 'John Doe',
+        role: 'patient',
+        phone: '0722334456',
+      },
+      {
+        email: 'jane.smith@example.com',
+        password: await hash('password123', 10),
+        fullName: 'Jane Smith',
+        role: 'patient',
+        phone: '0722334457',
+      },
+      {
+        email: 'peter.parker@example.com',
+        password: await hash('password123', 10),
+        fullName: 'Peter Parker',
+        role: 'patient',
+        phone: '0722334458',
+      }
+    ]).returning();
+
+    // Insert patient profiles
+    await db.insert(patientProfiles).values([
+      {
+        userId: patient1.id,
+        dateOfBirth: '1985-06-15',
+        gender: 'male',
+        insuranceProvider: 'NHIF',
         insuranceNumber: '1234567890',
       },
       {
-        fullName: 'John Doe',
-        dateOfBirth: new Date('1978-12-05'),
+        userId: patient2.id,
+        dateOfBirth: '1990-03-20',
+        gender: 'female',
+        insuranceProvider: 'NHIF',
+        insuranceNumber: '1234567890',
+      },
+      {
+        userId: patient3.id,
+        dateOfBirth: '1978-12-05',
         gender: 'male',
-        contactInfo: '0722334456',
         insuranceProvider: 'SHIF',
         insuranceNumber: '9876543210',
       },
       {
-        fullName: 'Jane Smith',
-        dateOfBirth: new Date('1995-08-15'),
+        userId: patient4.id,
+        dateOfBirth: '1995-08-15',
         gender: 'female',
-        contactInfo: '0722334457',
         insuranceProvider: 'CIC',
         insuranceNumber: '4567891230',
       },
       {
-        fullName: 'Peter Parker',
-        dateOfBirth: new Date('1988-04-25'),
+        userId: patient5.id,
+        dateOfBirth: '1988-04-25',
         gender: 'male',
-        contactInfo: '0722334458',
         insuranceProvider: 'Britam',
         insuranceNumber: '7891234560',
       }
-    ]).returning();
+    ]);
 
-    // Insert test doctors with different specializations and availability
-    const [doctor1, doctor2, doctor3, doctor4, doctor5] = await db.insert(doctors).values([
+    // Insert test doctors
+    const [doctor1, doctor2, doctor3, doctor4, doctor5] = await db.insert(users).values([
       {
-        firstName: 'Dr. James',
-        lastName: 'Ochieng',
         email: 'james.ochieng@knh.co.ke',
+        password: await hash('password123', 10),
+        fullName: 'Dr. James Ochieng',
+        role: 'doctor',
         phone: '+254 734 567 890',
-        specialization: 'Internal Medicine',
-        licenseNumber: 'KMPDB123456',
-        isAvailable: true,
-        isActive: true,
       },
       {
-        firstName: 'Dr. Mary',
-        lastName: 'Wambui',
         email: 'mary.wambui@knh.co.ke',
+        password: await hash('password123', 10),
+        fullName: 'Dr. Mary Wambui',
+        role: 'doctor',
         phone: '+254 745 678 901',
-        specialization: 'Pediatrics',
-        licenseNumber: 'KMPDB789012',
-        isAvailable: true,
-        isActive: true,
       },
       {
-        firstName: 'Dr. Sarah',
-        lastName: 'Johnson',
         email: 'sarah.johnson@knh.co.ke',
+        password: await hash('password123', 10),
+        fullName: 'Dr. Sarah Johnson',
+        role: 'doctor',
         phone: '+254 756 789 012',
-        specialization: 'Cardiology',
-        licenseNumber: 'KMPDB345678',
-        isAvailable: false,
-        isActive: true,
       },
       {
-        firstName: 'Dr. Michael',
-        lastName: 'Chen',
         email: 'michael.chen@knh.co.ke',
+        password: await hash('password123', 10),
+        fullName: 'Dr. Michael Chen',
+        role: 'doctor',
         phone: '+254 767 890 123',
-        specialization: 'Neurology',
-        licenseNumber: 'KMPDB901234',
-        isAvailable: true,
-        isActive: true,
       },
       {
-        firstName: 'Dr. Lisa',
-        lastName: 'Wang',
         email: 'lisa.wang@knh.co.ke',
+        password: await hash('password123', 10),
+        fullName: 'Dr. Lisa Wang',
+        role: 'doctor',
         phone: '+254 778 901 234',
-        specialization: 'Pediatrics',
-        licenseNumber: 'KMPDB567890',
-        isAvailable: true,
-        isActive: false,
       }
     ]).returning();
 
-    // Insert test appointments across different dates
-    // const today = new Date();
-    // const appointmentsData = [
-    //   {
-    //     patientId: patient1.id,
-    //     doctorId: doctor1.id,
-    //     appointmentDate: new Date(today.setHours(10, 0, 0, 0)),
-    //     status: 'scheduled',
-    //     notes: 'Follow-up for diabetes management',
-    //   },
-    //   {
-    //     patientId: patient2.id,
-    //     doctorId: doctor2.id,
-    //     appointmentDate: new Date(today.setHours(14, 30, 0, 0)),
-    //     status: 'scheduled',
-    //     notes: 'Child vaccination schedule',
-    //   },
-    //   {
-    //     patientId: patient3.id,
-    //     doctorId: doctor3.id,
-    //     appointmentDate: new Date(today.setDate(today.getDate() + 1)),
-    //     status: 'scheduled',
-    //     notes: 'Cardiac consultation',
-    //   },
-    //   {
-    //     patientId: patient4.id,
-    //     doctorId: doctor4.id,
-    //     appointmentDate: new Date(today.setDate(today.getDate() + 2)),
-    //     status: 'scheduled',
-    //     notes: 'Neurological assessment',
-    //   },
-    //   {
-    //     patientId: patient5.id,
-    //     doctorId: doctor5.id,
-    //     appointmentDate: new Date(today.setDate(today.getDate() - 1)),
-    //     status: 'completed',
-    //     notes: 'Regular checkup',
-    //   }
-    // ];
+    // Insert doctor profiles
+    await db.insert(doctorProfiles).values([
+      {
+        userId: doctor1.id,
+        specialization: 'Internal Medicine',
+        licenseNumber: 'KMPDB123456',
+        isActive: true,
+      },
+      {
+        userId: doctor2.id,
+        specialization: 'Pediatrics',
+        licenseNumber: 'KMPDB789012',
+        isActive: true,
+      },
+      {
+        userId: doctor3.id,
+        specialization: 'Cardiology',
+        licenseNumber: 'KMPDB345678',
+        isActive: true,
+      },
+      {
+        userId: doctor4.id,
+        specialization: 'Neurology',
+        licenseNumber: 'KMPDB901234',
+        isActive: true,
+      },
+      {
+        userId: doctor5.id,
+        specialization: 'Pediatrics',
+        licenseNumber: 'KMPDB567890',
+        isActive: false,
+      }
+    ]);
 
-    // await db.insert(appointments).values(appointmentsData);
+    // Insert test appointments
+    const today = new Date();
+    const appointmentsData = [
+      {
+        patientId: patient1.id,
+        doctorId: doctor1.id,
+        appointmentDate: new Date(today.setHours(10, 0, 0, 0)),
+        status: 'scheduled' as const,
+        notes: 'Follow-up for diabetes management',
+      },
+      {
+        patientId: patient2.id,
+        doctorId: doctor2.id,
+        appointmentDate: new Date(today.setHours(14, 30, 0, 0)),
+        status: 'scheduled' as const,
+        notes: 'Child vaccination schedule',
+      },
+      {
+        patientId: patient3.id,
+        doctorId: doctor3.id,
+        appointmentDate: new Date(today.setDate(today.getDate() + 1)),
+        status: 'scheduled' as const,
+        notes: 'Cardiac consultation',
+      },
+      {
+        patientId: patient4.id,
+        doctorId: doctor4.id,
+        appointmentDate: new Date(today.setDate(today.getDate() + 2)),
+        status: 'scheduled' as const,
+        notes: 'Neurological assessment',
+      },
+      {
+        patientId: patient5.id,
+        doctorId: doctor5.id,
+        appointmentDate: new Date(today.setDate(today.getDate() - 1)),
+        status: 'completed' as const,
+        notes: 'Regular checkup',
+      }
+    ];
+
+    await db.insert(appointments).values(appointmentsData);
 
     // Insert test medical records
     await db.insert(medicalRecords).values([

@@ -4,9 +4,9 @@ import { authenticate, isAdmin } from "../../middlewares/authMiddleware";
 
 const router = Router();
 
-router.get('/', authenticate as RequestHandler, isAdmin as RequestHandler, getDoctors);
+router.get('/', authenticate as RequestHandler, getDoctors);
 
-router.post('/', authenticate as RequestHandler, isAdmin as RequestHandler, addDoctor);
+router.post('/', authenticate as RequestHandler, isAdmin as RequestHandler , addDoctor);
 
 router.put('/:id', authenticate as RequestHandler, isAdmin as RequestHandler, updateDoctor);
 

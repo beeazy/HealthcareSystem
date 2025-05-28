@@ -356,3 +356,65 @@ export async function changeStatus(req: Request, res: Response): Promise<any> {
         res.status(500).json({ error: "Failed to fetch all appointments" });
       }
     }
+
+/**
+ * @swagger
+ * /appointments/patient:
+ *   get:
+ *     summary: Get all appointments for the authenticated patient
+ *     tags: [Appointments]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of patient's appointments
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Appointment'
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Patient not found
+ *       500:
+ *         description: Server error
+ */
+export async function getPatientAppointments(req: Request, res: Response): Promise<any> {
+    try {
+        const userId = req.user?.id
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        // Find the patient profile for the authenticated user
+        const patient = await db.query.patientProfiles.findFirst({
+            where: eq(patientProfiles.userId, userId)
+        })
+
+        if (!patient) {
+            return res.status(404).json({ error: 'Patient not found' })
+        }
+
+        // Get all appointments for the patient
+        const patientAppointments = await db.query.appointments.findMany({
+            where: eq(appointments.patientId, patient.id),
+            with: {
+                doctor: {
+                    columns: {
+                        id: true,
+                        fullName: true,
+                        specialization: true,
+                    },
+                },
+            },
+            orderBy: (appointments, { desc }) => [desc(appointments.appointmentDate)],
+        })
+
+        res.json(patientAppointments)
+    } catch (error) {
+        console.error('Error fetching patient appointments:', error)
+        res.status(500).json({ error: 'Failed to fetch patient appointments' })
+    }
+}
