@@ -183,10 +183,10 @@ export interface Patient {
 
 export interface Doctor {
   id: number
-  email: string
   fullName: string
-  role: 'doctor'
+  email: string
   phone?: string
+  role: 'doctor'
   doctorProfile: {
     specialization: string
     licenseNumber: string
@@ -474,6 +474,21 @@ export const appointmentsApi = {
     return response.json()
   },
 
+  updateAppointment: async (id: number, data: { status: 'scheduled' | 'completed' | 'cancelled' }) => {
+    const response = await fetch(`${API_URL}/appointments/${id}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      const error: ApiError = await response.json()
+      throw new Error(error.message || "Failed to update appointment")
+    }
+
+    return response.json()
+  },
+
   cancelAppointment: (id: number) => 
     fetch(`${API_URL}/appointments/${id}/cancel`, {
       method: 'PUT',
@@ -504,6 +519,12 @@ export const doctorsApi = {
   deactivateDoctor: (id: number) => 
     fetch(`${API_URL}/doctors/${id}/deactivate`, {
       method: 'PUT',
+      headers: getAuthHeaders(),
+    }).then(res => res.json()),
+
+  deleteDoctor: (id: number) => 
+    fetch(`${API_URL}/doctors/${id}`, {
+      method: 'DELETE',
       headers: getAuthHeaders(),
     }).then(res => res.json()),
 };

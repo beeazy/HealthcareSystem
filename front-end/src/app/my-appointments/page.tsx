@@ -13,7 +13,9 @@ import { addMinutes, isAfter, isBefore, parseISO } from 'date-fns'
 interface Doctor {
     id: number
     fullName: string
-    specialization: string
+    doctorProfile: {
+      specialization: string
+    }
   }
 
 interface AppointmentWithDoctor extends Omit<Appointment, 'doctor'> {
@@ -44,6 +46,9 @@ export default function MyAppointmentsPage() {
   const [selectedDoctor, setSelectedDoctor] = useState('')
   const [availableSlots, setAvailableSlots] = useState<{ time: string; available: boolean }[]>([])
   const [doctors, setDoctors] = useState<Doctor[]>([])
+  const [notes, setNotes] = useState('')
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [selectedTime, setSelectedTime] = useState('')
 
   useEffect(() => {
     fetchAppointments()
@@ -65,11 +70,15 @@ export default function MyAppointmentsPage() {
   const fetchDoctors = async () => {
     try {
       const data = await doctorsApi.getDoctors()
-      setDoctors(data.map((doctor: ApiDoctor) => ({
-        id: doctor.id,
-        fullName: doctor.fullName,
-        specialization: doctor.doctorProfile.specialization
-      })))
+      setDoctors(data
+        .filter((doctor: ApiDoctor) => doctor.doctorProfile.isActive)
+        .map((doctor: ApiDoctor) => ({
+          id: doctor.id,
+          fullName: doctor.fullName,
+          doctorProfile: {
+            specialization: doctor.doctorProfile.specialization
+          }
+        })))
     } catch (err) {
       toast.error('Failed to load doctors')
     }
@@ -127,38 +136,32 @@ export default function MyAppointmentsPage() {
     return true
   }
 
-  const handleBookAppointment = async (time: string) => {
-    console.log("handleBookAppointment called with time:", time)
+  const handleTimeSelect = (time: string) => {
+    setSelectedTime(time)
+    setShowConfirmDialog(true)
+  }
+
+  const handleConfirmBooking = async () => {
     try {
-      console.log("Starting try block")
       setBookingLoading(true)
       
-      // Combine date and time into ISO format
-      const appointmentDate = `${selectedDate}T${time}:00`
-      console.log("Generated appointmentDate:", appointmentDate)
+      const appointmentDate = `${selectedDate}T${selectedTime}:00`
       
-      // Match backend schema exactly
       const data = {
         patientId: user?.id || 0,
         doctorId: parseInt(selectedDoctor),
         startTime: appointmentDate,
-        notes: ''
+        notes: notes
       }
-
-      console.log("data as at here", JSON.stringify(data))
-      console.log("user?.id:", user?.id)
-      console.log("selectedDoctor:", selectedDoctor)
 
       // Validate appointment time
-      if (!validateAppointmentTime(selectedDate, time, parseInt(selectedDoctor))) {
-        console.log("Appointment time validation failed")
+      if (!validateAppointmentTime(selectedDate, selectedTime, parseInt(selectedDoctor))) {
         return
       }
-      console.log("Appointment time validation passed")
 
       // Optimistic update
       const optimisticAppointment: AppointmentWithDoctor = {
-        id: Date.now(), // Temporary ID
+        id: Date.now(),
         patientId: user?.id || 0,
         doctorId: parseInt(selectedDoctor),
         startTime: appointmentDate,
@@ -170,25 +173,25 @@ export default function MyAppointmentsPage() {
 
       setAppointments(prev => [optimisticAppointment, ...prev])
 
-      const response = await appointmentsApi.createAppointment(data)
+      await appointmentsApi.createAppointment(data)
       toast.success('Appointment booked successfully')
-      alert("Appointment booked successfully")
       
       // Reset form
       setSelectedDate('')
       setSelectedDoctor('')
       setAvailableSlots([])
+      setNotes('')
+      setShowConfirmDialog(false)
       
       // Refresh appointments
       await fetchAppointments()
     } catch (err) {
-      console.error("Error in handleBookAppointment:", err)
+      console.error("Error in handleConfirmBooking:", err)
       if (err instanceof z.ZodError) {
         toast.error(err.errors[0].message)
       } else {
         toast.error(err instanceof Error ? err.message : 'Failed to book appointment')
       }
-      // Refresh appointments to ensure consistency
       await fetchAppointments()
     } finally {
       setBookingLoading(false)
@@ -231,136 +234,213 @@ export default function MyAppointmentsPage() {
   return (
     <ProtectedRoute allowedRoles={['patient']}>
       <Layout>
-        <div className="space-y-6">
-          <h1 className="text-2xl font-semibold text-gray-900">My Appointments</h1>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="space-y-8">
+            <div className="flex justify-between items-center">
+              <h1 className="text-3xl font-bold text-gray-900">My Appointments</h1>
+            </div>
 
-          {/* Book New Appointment Section */}
-          <div className="rounded-lg bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-medium text-gray-900">Book New Appointment</h2>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="doctor" className="block text-sm font-medium text-gray-700">
-                  Select Doctor
-                </label>
-                <select
-                  id="doctor"
-                  value={selectedDoctor}
-                  onChange={(e) => setSelectedDoctor(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                >
-                  <option value="">Select a doctor</option>
-                  {doctors.map((doctor) => (
-                    <option key={doctor.id} value={doctor.id}>
-                      Dr. {doctor.fullName} - {doctor.specialization}
-                    </option>
-                  ))}
-                </select>
+            {/* Book New Appointment Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-100">
+                <h2 className="text-xl font-semibold text-gray-900">Book New Appointment</h2>
               </div>
-              <div>
-                <label htmlFor="date" className="block text-sm font-medium text-gray-700">
-                  Select Date
-                </label>
-                <input
-                  type="date"
-                  id="date"
-                  min={new Date().toISOString().split('T')[0]}
-                  value={selectedDate}
-                  onChange={(e) => handleDateSelect(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                />
+              <div className="p-6">
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="doctor" className="block text-sm font-medium text-gray-700 mb-1">
+                      Select Doctor
+                    </label>
+                    <select
+                      id="doctor"
+                      value={selectedDoctor}
+                      onChange={(e) => setSelectedDoctor(e.target.value)}
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    >
+                      <option value="">Select a doctor</option>
+                      {doctors.map((doctor) => (
+                        <option key={doctor.id} value={doctor.id}>
+                          {doctor.fullName} - {doctor.doctorProfile.specialization}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
+                      Select Date
+                    </label>
+                    <input
+                      type="date"
+                      id="date"
+                      min={new Date().toISOString().split('T')[0]}
+                      value={selectedDate}
+                      onChange={(e) => handleDateSelect(e.target.value)}
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+                      Notes (Optional)
+                    </label>
+                    <textarea
+                      id="notes"
+                      rows={3}
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      placeholder="Add any additional notes for your appointment"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {selectedDate && selectedDoctor && (
+                  <div className="mt-6">
+                    <h3 className="text-sm font-medium text-gray-700 mb-3">Available Time Slots</h3>
+                    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                      {availableSlots.map((slot) => (
+                        <button
+                          key={slot.time}
+                          onClick={() => handleTimeSelect(slot.time)}
+                          disabled={!slot.available || bookingLoading}
+                          className={`rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                            slot.available
+                              ? 'bg-indigo-600 text-white hover:bg-indigo-500 disabled:bg-indigo-300 disabled:cursor-not-allowed'
+                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          {slot.time}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {selectedDate && selectedDoctor && (
-              <div className="mt-4">
-                <h3 className="text-sm font-medium text-gray-700">Available Time Slots</h3>
-                <div className="mt-2 grid grid-cols-4 gap-2">
-                  {availableSlots.map((slot) => (
-                    <button
-                      key={slot.time}
-                      onClick={() => handleBookAppointment(slot.time)}
-                      disabled={!slot.available || bookingLoading}
-                      className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                        slot.available
-                          ? 'bg-indigo-600 text-white hover:bg-indigo-500 disabled:bg-indigo-300'
-                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      }`}
-                    >
-                      {slot.time}
-                    </button>
-                  ))}
+            {/* Add confirmation dialog */}
+            {showConfirmDialog && (
+              <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
+                <div className="bg-white rounded-lg p-6 max-w-md w-full">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Confirm Appointment</h3>
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-500">
+                      You are booking an appointment for {selectedDate} at {selectedTime}
+                    </p>
+                    <div>
+                      <label htmlFor="confirm-notes" className="block text-sm font-medium text-gray-700 mb-1">
+                        Notes (Optional)
+                      </label>
+                      <textarea
+                        id="confirm-notes"
+                        rows={3}
+                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        placeholder="Add any additional notes for your appointment"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex justify-end space-x-3">
+                      <button
+                        onClick={() => setShowConfirmDialog(false)}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleConfirmBooking}
+                        disabled={bookingLoading}
+                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 disabled:bg-indigo-300"
+                      >
+                        {bookingLoading ? 'Booking...' : 'Confirm Booking'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
-          </div>
 
-          {/* Existing Appointments Section */}
-          <div className="rounded-lg bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-medium text-gray-900">Upcoming Appointments</h2>
-            <div className="mt-4 space-y-4">
-              {appointments
-                // .filter((apt) => apt.status === 'scheduled')
-                .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-                .map((appointment) => (
-                  <div
-                    key={appointment.id}
-                    className="flex items-center justify-between rounded-lg border p-4"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        Dr. {appointment.doctor?.fullName} - {appointment.doctor?.specialization}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {appointment.startTime}
-                      </p>
-                      {appointment.notes && (
-                        <p className="text-sm text-gray-500">Notes: {appointment.notes}</p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleCancelAppointment(appointment.id)}
-                      disabled={bookingLoading}
-                      className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:bg-red-300"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ))}
-              {appointments.length === 0 && (
-                <p className="text-sm text-gray-500">No upcoming appointments</p>
-              )}
+            {/* Existing Appointments Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-100">
+                <h2 className="text-xl font-semibold text-gray-900">Upcoming Appointments</h2>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {appointments
+                    .filter((apt) => apt.status === 'scheduled')
+                    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+                    .map((appointment) => (
+                      <div
+                        key={appointment.id}
+                        className="flex items-center justify-between rounded-lg border border-gray-100 p-4 hover:border-indigo-100 transition-colors duration-200"
+                      >
+                        <div className="space-y-1">
+                          <p className="font-medium text-gray-900">
+                            {appointment.doctor?.fullName} - {appointment.doctor?.doctorProfile?.specialization}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {new Date(appointment.startTime).toLocaleString()}
+                          </p>
+                          {appointment.notes && (
+                            <p className="text-sm text-gray-500 italic">Notes: {appointment.notes}</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleCancelAppointment(appointment.id)}
+                          disabled={bookingLoading}
+                          className="rounded-lg bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:bg-red-50 disabled:text-red-300 transition-colors duration-200"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ))}
+                  {appointments.filter((apt) => apt.status === 'scheduled').length === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-4">No upcoming appointments</p>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* Past Appointments Section */}
-          <div className="rounded-lg bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-medium text-gray-900">Past Appointments</h2>
-            <div className="mt-4 space-y-4">
-              {appointments
-                .filter((apt) => apt.status !== 'scheduled')
-                .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
-                .map((appointment) => (
-                  <div
-                    key={appointment.id}
-                    className="flex items-center justify-between rounded-lg border p-4"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        Dr. {appointment.doctor?.fullName} - {appointment.doctor?.specialization}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {appointment.startTime}
-                      </p>
-                      <p className="text-sm text-gray-500">Status: {appointment.status}</p>
-                      {appointment.notes && (
-                        <p className="text-sm text-gray-500">Notes: {appointment.notes}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              {appointments.filter((apt) => apt.status !== 'scheduled').length === 0 && (
-                <p className="text-sm text-gray-500">No past appointments</p>
-              )}
+            {/* Past Appointments Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-100">
+                <h2 className="text-xl font-semibold text-gray-900">Past Appointments</h2>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {appointments
+                    .filter((apt) => apt.status !== 'scheduled')
+                    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+                    .map((appointment) => (
+                      <div
+                        key={appointment.id}
+                        className="rounded-lg border border-gray-100 p-4 hover:border-gray-200 transition-colors duration-200"
+                      >
+                        <div className="space-y-1">
+                          <p className="font-medium text-gray-900">
+                            {appointment.doctor?.fullName} - {appointment.doctor?.doctorProfile?.specialization}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {new Date(appointment.startTime).toLocaleString()}
+                          </p>
+                          <p className="text-sm font-medium">
+                            Status: <span className={`${
+                              appointment.status === 'completed' ? 'text-green-600' :
+                              appointment.status === 'cancelled' ? 'text-red-600' :
+                              'text-yellow-600'
+                            }`}>{appointment.status}</span>
+                          </p>
+                          {appointment.notes && (
+                            <p className="text-sm text-gray-500 italic">Notes: {appointment.notes}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  {appointments.filter((apt) => apt.status !== 'scheduled').length === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-4">No past appointments</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
