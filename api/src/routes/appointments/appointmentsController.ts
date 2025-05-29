@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../../db';
 import { appointments, doctorProfiles, patientProfiles } from '../../db/schema';
-import { eq, and, between, or, sql } from 'drizzle-orm';
+import { eq, and, between, or, sql, gte, lte, asc, lt } from 'drizzle-orm';
 import { z } from 'zod/v4';
 
 /**
@@ -38,37 +38,25 @@ import { z } from 'zod/v4';
 const appointmentSchema = z.object({
     patientId: z.number().int().positive(),
     doctorId: z.number().int().positive(),
-    appointmentDate: z.string()
+    startTime: z.string()
         .transform(str => new Date(str))
-        .refine(date => date > new Date(), {
-            message: "Appointment date must be in the future"
-        })
         .refine(date => {
+            const now = new Date();
             const hours = date.getHours();
-            const minutes = date.getMinutes();
-            // Only allow appointments between 9 AM and 5 PM
-            return (hours > 9 || (hours === 9 && minutes >= 0)) && 
-                   (hours < 17 || (hours === 17 && minutes === 0));
+            return date > now && hours >= 9 && hours < 17;
         }, {
-            message: "Appointments are only available between 9 AM and 5 PM"
+            message: "Appointment must be in the future between 9 AM and 5 PM"
         }),
     notes: z.string().optional(),
+    status: z.enum(['scheduled', 'completed', 'cancelled', 'no_show']).optional()
 }).strict();
+
+const updateAppointmentSchema = appointmentSchema.partial();
 
 const statusSchema = z.enum(['scheduled', 'cancelled', 'completed']);
 
 // Helper function to check if a time slot is available
 async function isTimeSlotAvailable(doctorId: number, appointmentDate: Date): Promise<boolean> {
-    // Check if doctor is active
-    const doctor = await db.query.doctorProfiles.findFirst({
-        where: eq(doctorProfiles.userId, doctorId)
-    });
-
-    if (!doctor?.isActive) {
-        return false;
-    }
-
-    // Check for overlapping appointments
     const startTime = new Date(appointmentDate);
     const endTime = new Date(appointmentDate.getTime() + 30 * 60000); // 30 minutes appointment
 
@@ -76,9 +64,10 @@ async function isTimeSlotAvailable(doctorId: number, appointmentDate: Date): Pro
         where: and(
             eq(appointments.doctorId, doctorId),
             eq(appointments.status, 'scheduled'),
+            sql`${appointments.startTime}::date = ${startTime}::date`,
             or(
-                sql`${appointments.appointmentDate} BETWEEN ${startTime} AND ${endTime}`,
-                sql`${new Date(appointmentDate.getTime() - 30 * 60000)} BETWEEN ${appointments.appointmentDate} AND ${endTime}`
+                sql`${appointments.startTime}::time BETWEEN ${startTime}::time AND ${endTime}::time`,
+                sql`${new Date(appointmentDate.getTime() - 30 * 60000)}::time BETWEEN ${appointments.startTime}::time AND ${endTime}::time`
             )
         )
     });
@@ -114,61 +103,60 @@ async function isTimeSlotAvailable(doctorId: number, appointmentDate: Date): Pro
  */
 export async function scheduleAppointment(req: Request, res: Response): Promise<any> {
     try {
-        const validatedData = appointmentSchema.parse(req.body);
+        const { patientId, doctorId, startTime, notes } = appointmentSchema.parse(req.body);
+        const endTime = new Date(startTime.getTime() + 30 * 60000); // 30 minutes later
         
-        // Validate patient exists
-        const patient = await db.query.patientProfiles.findFirst({
-            where: eq(patientProfiles.userId, validatedData.patientId)
+        // Check if slot is available
+        const existingAppointment = await db.query.appointments.findFirst({
+            where: and(
+                eq(appointments.doctorId, doctorId),
+                eq(appointments.status, 'scheduled'),
+                or(
+                    and(
+                        gte(appointments.startTime, startTime),
+                        lt(appointments.startTime, endTime)
+                    ),
+                    and(
+                        gte(appointments.endTime, startTime),
+                        lt(appointments.endTime, endTime)
+                    )
+                )
+            )
         });
 
-        if (!patient) {
-            return res.status(404).json({ error: 'Patient not found' });
-        }
-
-        // Validate doctor exists and is active
-        const doctor = await db.query.doctorProfiles.findFirst({
-            where: eq(doctorProfiles.userId, validatedData.doctorId)
-        });
-
-        if (!doctor) {
-            return res.status(404).json({ error: 'Doctor not found' });
-        }
-
-        if (!doctor.isActive) {
-            return res.status(400).json({ error: 'Doctor is not active' });
-        }
-
-        // Check if time slot is available
-        const isAvailable = await isTimeSlotAvailable(
-            validatedData.doctorId,
-            validatedData.appointmentDate
-        );
-
-        if (!isAvailable) {
+        if (existingAppointment) {
             return res.status(400).json({ error: 'Time slot is not available' });
         }
 
-        // Create appointment
-        const [newAppointment] = await db.insert(appointments)
-            .values({
-                ...validatedData,
-                status: 'scheduled',
-                createdAt: new Date(),
-                updatedAt: new Date()
-            })
-            .returning();
+        // Check if doctor is active
+        const doctor = await db.query.doctorProfiles.findFirst({
+            where: and(
+                eq(doctorProfiles.userId, doctorId),
+                eq(doctorProfiles.isActive, true)
+            )
+        });
 
-        res.status(201).json(newAppointment);
+        if (!doctor) {
+            return res.status(400).json({ error: 'Doctor is not available' });
+        }
+
+        // Create the appointment
+        const appointment = await db.insert(appointments).values({
+            patientId,
+            doctorId,
+            startTime,
+            endTime,
+            notes,
+            status: 'scheduled'
+        }).returning();
+
+        return res.status(201).json(appointment[0]);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return res.status(400).json({ 
-                error: 'Validation error', 
-                details: error.format() 
-            });
+            return res.status(400).json({ error: error.format() });
         }
-        
         console.error('Error scheduling appointment:', error);
-        res.status(500).json({ error: 'Failed to schedule appointment' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 }
 
@@ -234,7 +222,7 @@ export async function viewSchedule(req: Request, res: Response): Promise<any> {
         const schedule = await db.query.appointments.findMany({
             where: and(
                 eq(appointments.doctorId, Number(doctorId)),
-                sql`${appointments.appointmentDate} BETWEEN ${startDate} AND ${endDate}`
+                sql`${appointments.startTime} BETWEEN ${startDate} AND ${endDate}`
             ),
             with: {
                 patient: true
@@ -323,10 +311,9 @@ export async function changeStatus(req: Request, res: Response): Promise<any> {
         console.error('Error updating appointment status:', error);
         res.status(500).json({ error: 'Failed to update appointment status' });
     }
-
 }
 
-    /**
+/**
  * @swagger
  * /appointments:
  *   get:
@@ -344,18 +331,18 @@ export async function changeStatus(req: Request, res: Response): Promise<any> {
  *       500:
  *         description: Server error
  */
-    export async function getAllAppointments(
-      req: Request,
-      res: Response
-    ): Promise<any> {
-      try {
-        const appointments = await db.query.appointments.findMany();
-        res.json(appointments);
-      } catch (error) {
-        console.error("Error fetching all appointments:", error);
-        res.status(500).json({ error: "Failed to fetch all appointments" });
-      }
-    }
+export async function getAllAppointments(
+  req: Request,
+  res: Response
+): Promise<any> {
+  try {
+    const appointments = await db.query.appointments.findMany();
+    res.json(appointments);
+  } catch (error) {
+    console.error("Error fetching all appointments:", error);
+    res.status(500).json({ error: "Failed to fetch all appointments" });
+  }
+}
 
 /**
  * @swagger
@@ -383,7 +370,7 @@ export async function changeStatus(req: Request, res: Response): Promise<any> {
  */
 export async function getPatientAppointments(req: Request, res: Response): Promise<any> {
     try {
-        const userId = req.user?.id
+        const userId = req.user?.userId
         if (!userId) {
             return res.status(401).json({ error: 'Unauthorized' })
         }
@@ -400,21 +387,308 @@ export async function getPatientAppointments(req: Request, res: Response): Promi
         // Get all appointments for the patient
         const patientAppointments = await db.query.appointments.findMany({
             where: eq(appointments.patientId, patient.id),
-            with: {
-                doctor: {
-                    columns: {
-                        id: true,
-                        fullName: true,
-                        specialization: true,
-                    },
-                },
-            },
-            orderBy: (appointments, { desc }) => [desc(appointments.appointmentDate)],
+            
+            orderBy: (appointments, { desc }) => [desc(appointments.startTime)],
         })
 
         res.json(patientAppointments)
     } catch (error) {
         console.error('Error fetching patient appointments:', error)
         res.status(500).json({ error: 'Failed to fetch patient appointments' })
+    }
+}
+
+/**
+ * @swagger
+ * /appointments/slots:
+ *   get:
+ *     summary: Get available time slots for a doctor on a specific date
+ *     tags: [Appointments]
+ *     parameters:
+ *       - in: query
+ *         name: date
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Date to check for available slots
+ *       - in: query
+ *         name: doctorId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the doctor
+ *     responses:
+ *       200:
+ *         description: Available time slots retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   time:
+ *                     type: string
+ *                     format: time
+ *                   available:
+ *                     type: boolean
+ *       400:
+ *         description: Invalid request parameters
+ *       404:
+ *         description: Doctor not found
+ *       500:
+ *         description: Server error
+ */
+export async function getAvailableSlots(req: Request, res: Response): Promise<any> {
+    try {
+        const { date, doctorId } = req.query;
+        
+        if (!date || !doctorId) {
+            return res.status(400).json({ error: 'Date and doctor ID are required' });
+        }
+
+        // Check if doctor exists and is active
+        const doctor = await db.query.doctorProfiles.findFirst({
+            where: eq(doctorProfiles.userId, Number(doctorId))
+        });
+
+        if (!doctor) {
+            return res.status(404).json({ error: 'Doctor not found' });
+        }
+
+        if (!doctor.isActive) {
+            return res.status(400).json({ error: 'Doctor is not active' });
+        }
+
+        // Generate time slots from 9 AM to 5 PM
+        const slots = [];
+        const startHour = 9;
+        const endHour = 17;
+        const selectedDate = new Date(date as string);
+
+        // Get existing appointments for the day
+        const startOfDay = new Date(selectedDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(selectedDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const existingAppointments = await db.query.appointments.findMany({
+            where: and(
+                eq(appointments.doctorId, Number(doctorId)),
+                eq(appointments.status, 'scheduled'),
+                sql`${appointments.startTime} BETWEEN ${startOfDay} AND ${endOfDay}`
+            )
+        });
+
+        // Create a map of booked times
+        const bookedTimes = new Set(
+            existingAppointments.map(apt => {
+                const aptDate = new Date(apt.startTime);
+                return `${aptDate.getHours()}:${aptDate.getMinutes().toString().padStart(2, '0')}`;
+            })
+        );
+
+        // Generate available slots (30-minute intervals)
+        for (let hour = startHour; hour < endHour; hour++) {
+            for (let minute = 0; minute < 60; minute += 30) {
+                const timeString = `${hour}:${minute.toString().padStart(2, '0')}`;
+                const slotTime = new Date(selectedDate);
+                slotTime.setHours(hour, minute, 0, 0);
+
+                // Skip past times
+                if (slotTime < new Date()) {
+                    continue;
+                }
+
+                slots.push({
+                    time: timeString,
+                    available: !bookedTimes.has(timeString)
+                });
+            }
+        }
+
+        res.json(slots);
+    } catch (error) {
+        console.error('Error fetching available slots:', error);
+        res.status(500).json({ error: 'Failed to fetch available slots' });
+    }
+}
+
+export async function getAppointments(req: Request, res: Response): Promise<any> {
+    try {
+        const { doctorId, patientId, startDate, endDate } = req.query;
+        
+        const whereConditions = [];
+        
+        if (doctorId) {
+            whereConditions.push(eq(appointments.doctorId, Number(doctorId)));
+        }
+        
+        if (patientId) {
+            whereConditions.push(eq(appointments.patientId, Number(patientId)));
+        }
+        
+        if (startDate && endDate) {
+            whereConditions.push(
+                and(
+                    gte(appointments.startTime, new Date(startDate as string)),
+                    lte(appointments.startTime, new Date(endDate as string))
+                )
+            );
+        }
+        
+        const appointmentsList = await db.query.appointments.findMany({
+            where: whereConditions.length > 0 ? and(...whereConditions) : undefined,
+            orderBy: [asc(appointments.startTime)]
+        });
+        
+        return res.json(appointmentsList);
+    } catch (error) {
+        console.error('Error fetching appointments:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+/**
+ * @swagger
+ * /appointments/{id}:
+ *   put:
+ *     summary: Update an appointment
+ *     tags: [Appointments]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Appointment ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Appointment'
+ *     responses:
+ *       200:
+ *         description: Appointment updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Appointment'
+ *       400:
+ *         description: Invalid request or status
+ *       404:
+ *         description: Appointment not found
+ *       500:
+ *         description: Server error
+ */
+export async function updateAppointment(req: Request, res: Response): Promise<any> {
+    try {
+        const { id } = req.params;
+        const updateData = updateAppointmentSchema.parse(req.body);
+        
+        const [updatedAppointment] = await db.update(appointments)
+            .set({
+                ...updateData,
+                updatedAt: new Date()
+            })
+            .where(eq(appointments.id, Number(id)))
+            .returning();
+            
+        if (!updatedAppointment) {
+            return res.status(404).json({ error: 'Appointment not found' });
+        }
+        
+        return res.json(updatedAppointment);
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({ error: error.format() });
+        }
+        console.error('Error updating appointment:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+export async function getAppointmentsByDate(req: Request, res: Response): Promise<any> {
+    try {
+        const { date } = req.params;
+        const startDate = new Date(date);
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 1);
+
+        const appointmentsList = await db.query.appointments.findMany({
+            where: and(
+                gte(appointments.startTime, startDate),
+                lt(appointments.startTime, endDate)
+            ),
+            orderBy: [asc(appointments.startTime)]
+        });
+
+        return res.json(appointmentsList);
+    } catch (error) {
+        console.error('Error fetching appointments by date:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+export async function getAppointmentsByDoctor(req: Request, res: Response): Promise<any> {
+    try {
+        const { doctorId } = req.params;
+        const { startDate, endDate } = req.query;
+
+        const whereConditions = [eq(appointments.doctorId, Number(doctorId))];
+
+        const appointmentsList = await db.query.appointments.findMany({
+            where: whereConditions.length > 0 ? and(...whereConditions) : eq(appointments.id, appointments.id),
+            orderBy: [asc(appointments.startTime)]
+        });
+
+        return res.json(appointmentsList);
+    } catch (error) {
+        console.error('Error fetching doctor appointments:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+export async function getAppointmentsByPatient(req: Request, res: Response): Promise<any> {
+    try {
+        const { patientId } = req.params;
+        const { startDate, endDate } = req.query;
+
+        const whereConditions = [eq(appointments.patientId, Number(patientId))];
+
+        const appointmentsList = await db.query.appointments.findMany({
+            where: whereConditions.length > 0 ? and(...whereConditions) : eq(appointments.id, appointments.id),
+            orderBy: [asc(appointments.startTime)]
+        });
+
+        return res.json(appointmentsList);
+    } catch (error) {
+        console.error('Error fetching patient appointments:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+export async function getDoctorAppointments(req: Request, res: Response): Promise<any> {
+    try {
+        const doctorId = req.user?.userId;
+        if (!doctorId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const { startDate, endDate } = req.query;
+
+        const whereConditions = [eq(appointments.doctorId, doctorId)];
+
+        const appointmentsList = await db.query.appointments.findMany({
+            where: whereConditions.length > 0 ? and(...whereConditions) : eq(appointments.id, appointments.id),
+            orderBy: [asc(appointments.startTime)]
+        });
+
+        return res.json(appointmentsList);
+    } catch (error) {
+        console.error('Error fetching doctor appointments:', error);
+        return res.status(500).json({ error: 'Internal server error' });
     }
 }

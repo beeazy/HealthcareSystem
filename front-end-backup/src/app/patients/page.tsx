@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { patientsApi, type Patient, type PatientInput, authApi } from "@/lib/api"
+import { patientsApi, type Patient, type PatientInput } from "@/lib/api"
 import { toast } from "sonner"
 import {
   Table,
@@ -39,17 +39,14 @@ export default function PatientsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null)
-  const user = authApi.getUser()
 
   const form = useForm<PatientInput>({
     resolver: zodResolver(patientSchema),
     defaultValues: {
-      email: "",
-      password: "",
       fullName: "",
-      phone: "",
       dateOfBirth: new Date().toISOString().split('T')[0],
       gender: "",
+      contactInfo: "",
       insuranceProvider: "",
       insuranceNumber: "",
     },
@@ -103,13 +100,12 @@ export default function PatientsPage() {
   function handleEdit(patient: Patient) {
     setEditingPatient(patient)
     form.reset({
-      email: patient.email,
       fullName: patient.fullName,
-      phone: patient.phone || "",
-      dateOfBirth: new Date(patient.patientProfile.dateOfBirth).toISOString().split('T')[0],
-      gender: patient.patientProfile.gender,
-      insuranceProvider: patient.patientProfile.insuranceProvider || "",
-      insuranceNumber: patient.patientProfile.insuranceNumber || "",
+      dateOfBirth: new Date(patient.dateOfBirth).toISOString().split('T')[0],
+      gender: patient.gender,
+      contactInfo: patient.contactInfo,
+      insuranceProvider: patient.insuranceProvider || "",
+      insuranceNumber: patient.insuranceNumber || "",
     })
     setIsDialogOpen(true)
   }
@@ -142,51 +138,10 @@ export default function PatientsPage() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="email" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {!editingPatient && (
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="password" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-                <FormField
-                  control={form.control}
                   name="fullName"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Full Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -213,6 +168,19 @@ export default function PatientsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Gender</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="contactInfo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contact Info</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -262,30 +230,27 @@ export default function PatientsPage() {
               <TableHead>Name</TableHead>
               <TableHead>Date of Birth</TableHead>
               <TableHead>Gender</TableHead>
-              <TableHead>Phone</TableHead>
+              <TableHead>Contact Info</TableHead>
               <TableHead>Insurance Provider</TableHead>
               <TableHead>Insurance Number</TableHead>
-
-              {/* show actions only for admin */}
-              {user?.role === "admin" && (
-                <TableHead className="text-right">Actions</TableHead>
-              )}
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {patients.map((patient) => (
               <TableRow key={patient.id}>
                 <TableCell>{patient.fullName}</TableCell>
-                <TableCell>{patient.patientProfile.dateOfBirth}</TableCell>
-                <TableCell>{patient.patientProfile.gender}</TableCell>
-                <TableCell>{patient.phone}</TableCell>
-                <TableCell>{patient.patientProfile.insuranceProvider}</TableCell>
-                <TableCell>{patient.patientProfile.insuranceNumber}</TableCell>
-                {user?.role === "admin" && (
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
+                <TableCell>
+                  {format(new Date(patient.dateOfBirth), "MMM d, yyyy")}
+                </TableCell>
+                <TableCell>{patient.gender}</TableCell>
+                <TableCell>{patient.contactInfo}</TableCell>
+                <TableCell>{patient.insuranceProvider}</TableCell>
+                <TableCell>{patient.insuranceNumber}</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={() => handleEdit(patient)}
                   >
                     <Pencil className="h-4 w-4" />
@@ -295,10 +260,9 @@ export default function PatientsPage() {
                     size="icon"
                     onClick={() => handleDelete(patient.id)}
                   >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                )}
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

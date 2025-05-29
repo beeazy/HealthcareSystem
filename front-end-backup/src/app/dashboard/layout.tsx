@@ -1,6 +1,7 @@
 "use client"
 
-import Navigation from "@/components/Navigation"
+import { useAuth } from "@/lib/auth"
+import Navigation from "../../components/navigation"
 
 export default function DashboardLayout({
   children,

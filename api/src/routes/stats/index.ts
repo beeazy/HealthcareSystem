@@ -68,8 +68,8 @@ router.get('/', (async (req, res) => {
             totalDoctors: await db.select({ value: count() }).from(doctorProfiles).where(eq(doctorProfiles.isActive, true)),
             appointmentsToday: await db.select({ value: count() }).from(appointments)
                 .where(and(
-                    gte(appointments.appointmentDate, new Date(new Date().setHours(0, 0, 0, 0))),
-                    lte(appointments.appointmentDate, new Date(new Date().setHours(23, 59, 59, 999)))
+                    gte(appointments.startTime, new Date(new Date().setHours(0, 0, 0, 0))),
+                    lte(appointments.startTime, new Date(new Date().setHours(23, 59, 59, 999)))
                 )),
             availableDoctors: await db.select({ value: count() }).from(doctorProfiles)
                 .where(eq(doctorProfiles.isActive, true)),
@@ -83,13 +83,13 @@ router.get('/', (async (req, res) => {
             .orderBy(desc(count()))
             .limit(5),
             appointmentsByMonth: await db.select({
-                month: sql<string>`to_char(${appointments.appointmentDate}, 'Mon')`,
+                month: sql<string>`to_char(${appointments.startTime}, 'Mon')`,
                 count: count()
             })
             .from(appointments)
-            .where(gte(appointments.appointmentDate, new Date(new Date().setMonth(new Date().getMonth() - 6))))
-            .groupBy(sql`to_char(${appointments.appointmentDate}, 'Mon')`)
-            .orderBy(sql`to_char(${appointments.appointmentDate}, 'Mon')`)
+            .where(gte(appointments.startTime, new Date(new Date().setMonth(new Date().getMonth() - 6))))
+            .groupBy(sql`to_char(${appointments.startTime}, 'Mon')`)
+            .orderBy(sql`to_char(${appointments.startTime}, 'Mon')`)
         };
 
         res.json({

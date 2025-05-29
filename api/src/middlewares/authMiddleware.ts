@@ -16,8 +16,7 @@ declare global {
 }
 
 interface CustomJwtPayload {
-    id: number;
-    email: string;
+    userId: number;
     role: string;
 }
 
@@ -33,7 +32,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
         // Verify user still exists
         const user = await db.query.users.findFirst({
-            where: eq(users.id, decoded.id),
+            where: eq(users.id, decoded.userId),
         });
 
         if (!user) {
