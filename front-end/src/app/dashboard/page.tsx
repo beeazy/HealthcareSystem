@@ -6,7 +6,7 @@ import { statsApi } from "@/lib/api"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { Layout } from "@/components/Layout"
 import { Users, Stethoscope, Calendar, UserCheck, Activity } from "lucide-react"
-import { motion } from "framer-motion"
+import { Loading } from "@/components/ui/loading"
 
 interface Stats {
   totalPatients: number
@@ -23,11 +23,7 @@ interface Stats {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 const StatCard = ({ title, value, icon: Icon, color }: { title: string; value: number; icon: any; color: string }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-100 transition-all hover:shadow-md"
-  >
+  <div className="animate-fade-in rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-100 transition-all hover:shadow-md">
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm font-medium text-gray-600">{title}</p>
@@ -37,7 +33,7 @@ const StatCard = ({ title, value, icon: Icon, color }: { title: string; value: n
         <Icon className="h-6 w-6 text-white" />
       </div>
     </div>
-  </motion.div>
+  </div>
 )
 
 export default function Dashboard() {
@@ -81,12 +77,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex min-h-[60vh] items-center justify-center">
-          <div className="text-center">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
-            <p className="mt-4 text-sm text-gray-600">Loading dashboard data...</p>
-          </div>
-        </div>
+        <Loading message="Loading dashboard data..." />
       </Layout>
     )
   }
@@ -150,11 +141,7 @@ export default function Dashboard() {
           </div>
 
           {isAdmin && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-100"
-            >
+            <div className="animate-fade-in-delay rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
               <h3 className="text-lg font-semibold text-gray-900">Top Specializations</h3>
               <div className="mt-4 space-y-3">
                 {stats?.topSpecializations.map((spec, index) => (
@@ -162,22 +149,18 @@ export default function Dashboard() {
                     <span className="text-gray-600">{spec}</span>
                     <div className="h-2 w-24 rounded-full bg-gray-100">
                       <div
-                        className="h-2 rounded-full bg-primary"
+                        className="h-2 rounded-full bg-primary transition-all duration-500"
                         style={{ width: `${100 - index * 15}%` }}
                       />
                     </div>
                   </div>
                 ))}
               </div>
-            </motion.div>
+            </div>
           )}
 
           {(isAdmin || isDoctor) && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-100"
-            >
+            <div className="animate-fade-in-delay-2 rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">Appointments by Month</h3>
                 <Activity className="h-5 w-5 text-gray-400" />
@@ -198,28 +181,24 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {isPatient && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-100"
-            >
+            <div className="animate-fade-in-delay rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
               <h3 className="text-lg font-semibold text-gray-900">Welcome, {user?.fullName}</h3>
               <p className="mt-2 text-gray-600">
                 You can manage your appointments and view your medical records from here.
               </p>
               <div className="mt-4 flex gap-4">
-                <button className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90">
+                <button className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors">
                   Schedule Appointment
                 </button>
-                <button className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <button className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                   View Medical Records
                 </button>
               </div>
-            </motion.div>
+            </div>
           )}
         </div>
       </Layout>

@@ -33,6 +33,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { patientSchema } from "@/lib/api"
 import { format } from "date-fns"
 import { Pencil, Trash2, Plus } from "lucide-react"
+import { Layout } from "@/components/Layout"
+import { Loading } from "@/components/ui/loading"
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([])
@@ -115,7 +117,11 @@ export default function PatientsPage() {
   }
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return (
+      <Layout>
+        <Loading message="Loading patients..." />
+      </Layout>
+    )
   }
 
   return (

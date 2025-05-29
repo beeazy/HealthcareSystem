@@ -8,6 +8,8 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { format, parseISO, isSameDay } from 'date-fns'
 import { toast } from 'sonner'
 import { CalendarIcon } from 'lucide-react'
+import { Loading } from "@/components/ui/loading"
+import Navigation from '@/components/Navigation'
 
 interface AppointmentWithPatient extends Omit<Appointment, 'patient'> {
   patientId: number
@@ -84,18 +86,14 @@ export default function DoctorAppointmentsPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading appointments...</p>
-          </div>
-        </div>
+        <Loading message="Loading appointments..." />
       </Layout>
     )
   }
 
   return (
     <ProtectedRoute allowedRoles={['doctor']}>
+      <Navigation />
       <Layout>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
           <div className="space-y-4 sm:space-y-8">

@@ -33,6 +33,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { doctorSchema } from "@/lib/api"
 import { Pencil, Trash2, Plus } from "lucide-react"
+import { Loading } from "@/components/ui/loading"
+import { Layout } from "@/components/Layout"
 
 export default function DoctorsPage() {
   const { user } = useAuth()
@@ -112,7 +114,11 @@ export default function DoctorsPage() {
   }
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return (
+      <Layout>
+        <Loading message="Loading doctors..." />
+      </Layout>
+    )
   }
 
   return (

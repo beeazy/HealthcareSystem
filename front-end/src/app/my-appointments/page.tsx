@@ -9,6 +9,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { addMinutes, isAfter, isBefore, parseISO } from 'date-fns'
+import { Loading } from "@/components/ui/loading"
 
 interface Doctor {
     id: number
@@ -221,12 +222,7 @@ export default function MyAppointmentsPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading appointments...</p>
-          </div>
-        </div>
+        <Loading message="Loading your appointments..." />
       </Layout>
     )
   }

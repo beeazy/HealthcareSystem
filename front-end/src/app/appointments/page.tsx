@@ -41,6 +41,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { z } from "zod"
+import { Layout } from "@/components/Layout"
+import { Loading } from "@/components/ui/loading"
 
 // Define the appointment form schema
 const appointmentFormSchema = z.object({
@@ -237,10 +239,15 @@ export default function AppointmentsPage() {
   }
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return (
+      <Layout>
+        <Loading message="Loading appointments..." />
+      </Layout>
+    )
   }
 
   return (
+    <Layout>
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Appointments</h1>
@@ -492,5 +499,6 @@ export default function AppointmentsPage() {
         </Table>
       </div>
     </div>
+    </Layout>
   )
 } 
