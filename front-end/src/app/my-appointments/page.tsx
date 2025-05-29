@@ -110,7 +110,7 @@ export default function MyAppointmentsPage() {
     const hasOverlap = appointments.some(appointment => {
       if (appointment.doctorId !== doctorId || appointment.status === 'cancelled') return false
       
-      const existingStart = parseISO(appointment.appointmentDate)
+      const existingStart = parseISO(appointment.startTime)
       const existingEnd = addMinutes(existingStart, 30)
       
       return (
@@ -141,7 +141,7 @@ export default function MyAppointmentsPage() {
       const data = {
         patientId: user?.id || 0,
         doctorId: parseInt(selectedDoctor),
-        appointmentDate,
+        startTime: appointmentDate,
         notes: ''
       }
 
@@ -161,7 +161,7 @@ export default function MyAppointmentsPage() {
         id: Date.now(), // Temporary ID
         patientId: user?.id || 0,
         doctorId: parseInt(selectedDoctor),
-        appointmentDate,
+        startTime: appointmentDate,
         status: 'scheduled',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -170,11 +170,9 @@ export default function MyAppointmentsPage() {
 
       setAppointments(prev => [optimisticAppointment, ...prev])
 
-      // Make API call
-      console.log("Making API call to create appointment")
       const response = await appointmentsApi.createAppointment(data)
-      console.log("API response:", response)
       toast.success('Appointment booked successfully')
+      alert("Appointment booked successfully")
       
       // Reset form
       setSelectedDate('')
@@ -301,7 +299,8 @@ export default function MyAppointmentsPage() {
             <h2 className="text-lg font-medium text-gray-900">Upcoming Appointments</h2>
             <div className="mt-4 space-y-4">
               {appointments
-                .filter((apt) => apt.status === 'scheduled')
+                // .filter((apt) => apt.status === 'scheduled')
+                .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
                 .map((appointment) => (
                   <div
                     key={appointment.id}
@@ -312,8 +311,11 @@ export default function MyAppointmentsPage() {
                         Dr. {appointment.doctor?.fullName} - {appointment.doctor?.specialization}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {formatAppointmentDateTime(appointment.appointmentDate).date} at {formatAppointmentDateTime(appointment.appointmentDate).time}
+                        {appointment.startTime}
                       </p>
+                      {appointment.notes && (
+                        <p className="text-sm text-gray-500">Notes: {appointment.notes}</p>
+                      )}
                     </div>
                     <button
                       onClick={() => handleCancelAppointment(appointment.id)}
@@ -324,6 +326,9 @@ export default function MyAppointmentsPage() {
                     </button>
                   </div>
                 ))}
+              {appointments.length === 0 && (
+                <p className="text-sm text-gray-500">No upcoming appointments</p>
+              )}
             </div>
           </div>
 
@@ -333,6 +338,7 @@ export default function MyAppointmentsPage() {
             <div className="mt-4 space-y-4">
               {appointments
                 .filter((apt) => apt.status !== 'scheduled')
+                .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
                 .map((appointment) => (
                   <div
                     key={appointment.id}
@@ -343,12 +349,18 @@ export default function MyAppointmentsPage() {
                         Dr. {appointment.doctor?.fullName} - {appointment.doctor?.specialization}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {formatAppointmentDateTime(appointment.appointmentDate).date} at {formatAppointmentDateTime(appointment.appointmentDate).time}
+                        {appointment.startTime}
                       </p>
                       <p className="text-sm text-gray-500">Status: {appointment.status}</p>
+                      {appointment.notes && (
+                        <p className="text-sm text-gray-500">Notes: {appointment.notes}</p>
+                      )}
                     </div>
                   </div>
                 ))}
+              {appointments.filter((apt) => apt.status !== 'scheduled').length === 0 && (
+                <p className="text-sm text-gray-500">No past appointments</p>
+              )}
             </div>
           </div>
         </div>

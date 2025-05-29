@@ -46,7 +46,7 @@ export default function DoctorAppointmentsPage() {
           await appointmentsApi.createAppointment({
             patientId: appointment.patientId,
             doctorId: appointment.doctorId,
-            appointmentDate: appointment.appointmentDate,
+            startTime: appointment.startTime,
             notes: appointment.notes
           })
         }
@@ -97,7 +97,7 @@ export default function DoctorAppointmentsPage() {
                         Patient: {appointment.patient?.fullName}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {appointment.appointmentDate}
+                        {appointment.startTime}
                       </p>
                       {appointment.notes && (
                         <p className="text-sm text-gray-500">Notes: {appointment.notes}</p>
@@ -138,7 +138,7 @@ export default function DoctorAppointmentsPage() {
                         Patient: {appointment.patient?.fullName}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {appointment.appointmentDate}
+                        {appointment.startTime}
                       </p>
                       <p className="text-sm text-gray-500">Status: {appointment.status}</p>
                       {appointment.notes && (

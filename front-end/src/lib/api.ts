@@ -105,7 +105,7 @@ export const doctorSchema = z.object({
 export const appointmentSchema = z.object({
   patientId: z.number().int().positive("Please select a patient"),
   doctorId: z.number().int().positive("Please select a doctor"),
-  appointmentDate: z.string()
+  startTime: z.string()
     .transform(str => new Date(str))
     .refine(date => date > new Date(), {
       message: "Appointment date must be in the future"
@@ -200,7 +200,7 @@ export interface Appointment {
   id: number
   patientId: number
   doctorId: number
-  appointmentDate: string
+  startTime: string
   status: 'scheduled' | 'cancelled' | 'completed'
   notes?: string
   createdAt: string
@@ -423,10 +423,26 @@ export const appointmentsApi = {
       headers: getAuthHeaders(),
     }).then(res => res.json()),
   
-  getPatientAppointments: () => 
-    fetch(`${API_URL}/appointments/patient`, {
+  getPatientAppointments: async () => {
+    const token = authApi.getToken()
+    if (!token) {
+      throw new Error("Not authenticated")
+    }
+
+    console.log('Fetching patient appointments with token:', token.substring(0, 10) + '...')
+
+    const response = await fetch(`${API_URL}/appointments/patient`, {
       headers: getAuthHeaders(),
-    }).then(res => res.json()),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.details || error.message || "Failed to fetch patient appointments")
+    }
+
+    const data = await response.json()
+    return data
+  },
   
   getDoctorAppointments: () => 
     fetch(`${API_URL}/appointments/doctor`, {
@@ -441,7 +457,7 @@ export const appointmentsApi = {
   createAppointment: async (data: {
     patientId: number
     doctorId: number
-    appointmentDate: string
+    startTime: string
     notes?: string
   }) => {
     const response = await fetch(`${API_URL}/appointments`, {

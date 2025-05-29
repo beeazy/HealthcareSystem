@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../../db';
-import { appointments, doctorProfiles, patientProfiles } from '../../db/schema';
-import { eq, and, between, or, sql, gte, lte, asc, lt } from 'drizzle-orm';
+import { appointments, doctorProfiles, patientProfiles, users } from '../../db/schema';
+import { eq, and, between, or, sql, gte, lte, asc, lt, desc } from 'drizzle-orm';
 import { z } from 'zod/v4';
 
 /**
@@ -372,8 +372,11 @@ export async function getPatientAppointments(req: Request, res: Response): Promi
     try {
         const userId = req.user?.userId
         if (!userId) {
+            console.log('No userId found in request:', req.user)
             return res.status(401).json({ error: 'Unauthorized' })
         }
+
+        console.log('Looking up patient profile for userId:', userId)
 
         // Find the patient profile for the authenticated user
         const patient = await db.query.patientProfiles.findFirst({
@@ -381,20 +384,59 @@ export async function getPatientAppointments(req: Request, res: Response): Promi
         })
 
         if (!patient) {
+            console.log('No patient profile found for userId:', userId)
             return res.status(404).json({ error: 'Patient not found' })
         }
 
-        // Get all appointments for the patient
+        console.log('Found patient profile:', patient)
+
+        // Get all appointments for the patient using the user ID
         const patientAppointments = await db.query.appointments.findMany({
-            where: eq(appointments.patientId, patient.id),
-            
+            where: eq(appointments.patientId, userId), // Use userId instead of patient.id
             orderBy: (appointments, { desc }) => [desc(appointments.startTime)],
         })
 
-        res.json(patientAppointments)
+        console.log('Raw appointments from DB:', patientAppointments)
+
+        // Get related data separately
+        const appointmentsWithRelations = await Promise.all(
+            patientAppointments.map(async (appointment) => {
+                const [patientData, doctorData] = await Promise.all([
+                    db.query.users.findFirst({
+                        where: eq(users.id, appointment.patientId),
+                        with: {
+                            patientProfile: true
+                        }
+                    }),
+                    db.query.users.findFirst({
+                        where: eq(users.id, appointment.doctorId),
+                        with: {
+                            doctorProfile: true
+                        }
+                    })
+                ])
+
+                return {
+                    ...appointment,
+                    patient: patientData,
+                    doctor: doctorData
+                }
+            })
+        )
+
+        console.log('Appointments with relations:', appointmentsWithRelations)
+
+        res.json(appointmentsWithRelations)
     } catch (error) {
-        console.error('Error fetching patient appointments:', error)
-        res.status(500).json({ error: 'Failed to fetch patient appointments' })
+        console.error('Detailed error in getPatientAppointments:', error)
+        if (error instanceof Error) {
+            console.error('Error message:', error.message)
+            console.error('Error stack:', error.stack)
+        }
+        res.status(500).json({ 
+            error: 'Failed to fetch patient appointments',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        })
     }
 }
 

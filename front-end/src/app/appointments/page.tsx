@@ -104,11 +104,15 @@ export default function AppointmentsPage() {
 
       if (selectedDoctor) {
         const appointmentsData = await appointmentsApi.getDoctorAppointments()
+        console.log('Doctor appointments:', appointmentsData) // Debug log
         setAppointments(appointmentsData.filter((app: Appointment) => app.doctorId === selectedDoctor.id))
       } else {
-        setAppointments([])
+        const appointmentsData = await appointmentsApi.getPatientAppointments()
+        console.log('Patient appointments:', appointmentsData) // Debug log
+        setAppointments(appointmentsData)
       }
     } catch (error) {
+      console.error('Error loading data:', error) // Debug log
       toast.error("Failed to load data")
     } finally {
       setIsLoading(false)
@@ -138,7 +142,7 @@ export default function AppointmentsPage() {
     const hasOverlap = appointments.some(appointment => {
       if (appointment.doctorId !== doctorId || appointment.status === 'cancelled') return false
       
-      const existingStart = parseISO(appointment.appointmentDate)
+      const existingStart = parseISO(appointment.startTime)
       const existingEnd = addMinutes(existingStart, 30)
       
       return (
@@ -162,8 +166,10 @@ export default function AppointmentsPage() {
           await appointmentsApi.cancelAppointment(editingAppointment.id)
         } else {
           await appointmentsApi.createAppointment({
-            ...data,
-            appointmentDate: data.startTime
+            patientId: data.patientId,
+            doctorId: data.doctorId,
+            startTime: data.startTime,
+            notes: data.notes
           })
         }
         toast.success("Appointment updated successfully")
@@ -173,8 +179,10 @@ export default function AppointmentsPage() {
         }
 
         await appointmentsApi.createAppointment({
-          ...data,
-          appointmentDate: data.startTime
+          patientId: data.patientId,
+          doctorId: data.doctorId,
+          startTime: data.startTime,
+          notes: data.notes
         })
         toast.success("Appointment scheduled successfully")
       }
@@ -205,7 +213,7 @@ export default function AppointmentsPage() {
         await appointmentsApi.createAppointment({
           patientId: appointments.find(app => app.id === id)?.patientId || 0,
           doctorId: appointments.find(app => app.id === id)?.doctorId || 0,
-          appointmentDate: appointments.find(app => app.id === id)?.appointmentDate || "",
+          startTime: appointments.find(app => app.id === id)?.startTime || "",
           notes: appointments.find(app => app.id === id)?.notes || ""
         })
       }
@@ -221,7 +229,7 @@ export default function AppointmentsPage() {
     form.reset({
       patientId: appointment.patientId,
       doctorId: appointment.doctorId,
-      startTime: new Date(appointment.appointmentDate).toISOString().slice(0, 16),
+      startTime: new Date(appointment.startTime).toISOString().slice(0, 16),
       notes: appointment.notes || "",
       status: appointment.status,
     })
@@ -437,7 +445,7 @@ export default function AppointmentsPage() {
                   }
                 </TableCell>
                 <TableCell>
-                  {format(new Date(appointment.appointmentDate), "MMM d, yyyy h:mm a")}
+                  {format(new Date(appointment.startTime), "MMM d, yyyy h:mm a")}
                 </TableCell>
                 <TableCell>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium
