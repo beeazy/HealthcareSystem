@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 import { addMinutes, isAfter, isBefore, parseISO } from 'date-fns'
 import { Loading } from "@/components/ui/loading"
+import Navigation from '@/components/Navigation'
 
 interface Doctor {
     id: number
@@ -229,6 +230,7 @@ export default function MyAppointmentsPage() {
 
   return (
     <ProtectedRoute allowedRoles={['patient']}>
+      <Navigation />
       <Layout>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="space-y-8">

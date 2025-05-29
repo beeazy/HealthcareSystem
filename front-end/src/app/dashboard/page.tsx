@@ -7,7 +7,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { Layout } from "@/components/Layout"
 import { Users, Stethoscope, Calendar, UserCheck, Activity } from "lucide-react"
 import { Loading } from "@/components/ui/loading"
-
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 interface Stats {
   totalPatients: number
   totalDoctors: number
@@ -41,6 +42,8 @@ export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const router = useRouter()
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -191,12 +194,18 @@ export default function Dashboard() {
                 You can manage your appointments and view your medical records from here.
               </p>
               <div className="mt-4 flex gap-4">
-                <button className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors">
+                <button 
+                onClick={() => router.push('/my-appointments')}
+                
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors">
                   Schedule Appointment
                 </button>
-                <button className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                <Link
+                  href={`/patient-records/${user?.id}`}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
                   View Medical Records
-                </button>
+                </Link>
               </div>
             </div>
           )}

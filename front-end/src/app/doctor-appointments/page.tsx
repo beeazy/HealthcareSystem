@@ -7,9 +7,10 @@ import { Layout } from '@/components/Layout'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { format, parseISO, isSameDay } from 'date-fns'
 import { toast } from 'sonner'
-import { CalendarIcon } from 'lucide-react'
+import { CalendarIcon, X } from 'lucide-react'
 import { Loading } from "@/components/ui/loading"
 import Navigation from '@/components/Navigation'
+import { z } from 'zod'
 
 interface AppointmentWithPatient extends Omit<Appointment, 'patient'> {
   patientId: number
@@ -22,12 +23,31 @@ interface AppointmentWithPatient extends Omit<Appointment, 'patient'> {
   updatedAt: string
 }
 
+const medicalRecordSchema = z.object({
+  diagnosis: z.string().min(1, 'Diagnosis is required'),
+  treatment: z.string().min(1, 'Treatment is required'),
+  notes: z.string().optional(),
+  medications: z.array(z.string()).optional(),
+  followUpDate: z.string().optional()
+})
+
+type MedicalRecordForm = z.infer<typeof medicalRecordSchema>
+
 export default function DoctorAppointmentsPage() {
   const { user } = useAuth()
   const [appointments, setAppointments] = useState<AppointmentWithPatient[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<string>('')
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithPatient | null>(null)
+  const [medicalRecordForm, setMedicalRecordForm] = useState<MedicalRecordForm>({
+    diagnosis: '',
+    treatment: '',
+    notes: '',
+    medications: [],
+    followUpDate: ''
+  })
+  const [showMedicalForm, setShowMedicalForm] = useState(false)
 
   useEffect(() => {
     fetchAppointments()
@@ -56,17 +76,45 @@ export default function DoctorAppointmentsPage() {
       } else if (newStatus === 'completed') {
         const appointment = appointments.find(apt => apt.id === appointmentId)
         if (appointment) {
-          await appointmentsApi.updateAppointment(appointmentId, {
-            status: 'completed'
-          })
-          toast.success('Appointment marked as completed')
+          setSelectedAppointment(appointment)
+          setShowMedicalForm(true)
+          return
         }
       }
       await fetchAppointments()
     } catch (err) {
-      console.error('Error updating appointment:', err) // Debug log
+      console.error('Error updating appointment:', err)
       setError('Failed to update appointment status')
       toast.error('Failed to update appointment status')
+    }
+  }
+
+  const handleMedicalRecordSubmit = async () => {
+    if (!selectedAppointment) return
+
+    try {
+      const validatedData = medicalRecordSchema.parse(medicalRecordForm)
+      await appointmentsApi.updateAppointment(selectedAppointment.id, {
+        status: 'completed',
+        ...validatedData
+      })
+      toast.success('Appointment completed and medical record created')
+      setShowMedicalForm(false)
+      setSelectedAppointment(null)
+      setMedicalRecordForm({
+        diagnosis: '',
+        treatment: '',
+        notes: '',
+        medications: [],
+        followUpDate: ''
+      })
+      await fetchAppointments()
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        toast.error(err.errors[0].message)
+      } else {
+        toast.error('Failed to complete appointment')
+      }
     }
   }
 
@@ -121,6 +169,89 @@ export default function DoctorAppointmentsPage() {
                 </div>
               </div>
             </div>
+
+            {/* Medical Record Form Modal */}
+            {showMedicalForm && selectedAppointment && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 animate-fade-in">
+                  <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-900">Complete Appointment</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Patient ID: {selectedAppointment.patientId} • {formatDateTime(selectedAppointment.startTime)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowMedicalForm(false)
+                        setSelectedAppointment(null)
+                      }}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Diagnosis</label>
+                      <input
+                        type="text"
+                        value={medicalRecordForm.diagnosis}
+                        onChange={(e) => setMedicalRecordForm(prev => ({ ...prev, diagnosis: e.target.value }))}
+                        className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-colors"
+                        placeholder="Enter patient diagnosis"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Treatment</label>
+                      <input
+                        type="text"
+                        value={medicalRecordForm.treatment}
+                        onChange={(e) => setMedicalRecordForm(prev => ({ ...prev, treatment: e.target.value }))}
+                        className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-colors"
+                        placeholder="Enter prescribed treatment"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Notes</label>
+                      <textarea
+                        value={medicalRecordForm.notes}
+                        onChange={(e) => setMedicalRecordForm(prev => ({ ...prev, notes: e.target.value }))}
+                        className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-colors resize-none"
+                        rows={3}
+                        placeholder="Additional notes about the appointment"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Follow-up Date</label>
+                      <input
+                        type="date"
+                        value={medicalRecordForm.followUpDate}
+                        onChange={(e) => setMedicalRecordForm(prev => ({ ...prev, followUpDate: e.target.value }))}
+                        className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-colors"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                      <button
+                        onClick={() => {
+                          setShowMedicalForm(false)
+                          setSelectedAppointment(null)
+                        }}
+                        className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleMedicalRecordSubmit}
+                        className="px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors focus:ring-2 focus:ring-indigo-500/20"
+                      >
+                        Complete Appointment
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Upcoming Appointments */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

@@ -3,71 +3,45 @@ import { z } from "zod"
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ""
 
 const api = {
-  get: async <T>(endpoint: string): Promise<T> => {
+  get: <T>(endpoint: string): Promise<T> => {
     const token = authApi.getToken()
-    if (!token) {
-      throw new Error("Not authenticated")
-    }
-
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-
-    if (!response.ok) {
-      const error: ApiError = await response.json()
-      throw new Error(error.message || "Request failed")
-    }
-
-    return response.json()
+    if (!token) throw new Error("Not authenticated")
+    return fetch(`${API_URL}${endpoint}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).then(res => res.json())
   },
-
-  post: async <T>(endpoint: string, data: any): Promise<T> => {
+  post: <T>(endpoint: string, data: any): Promise<T> => {
     const token = authApi.getToken()
-    if (!token) {
-      throw new Error("Not authenticated")
-    }
-
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    if (!token) throw new Error("Not authenticated")
+    return fetch(`${API_URL}${endpoint}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify(data),
-    })
-
-    if (!response.ok) {
-      const error: ApiError = await response.json()
-      throw new Error(error.message || "Request failed")
-    }
-
-    return response.json()
+      body: JSON.stringify(data)
+    }).then(res => res.json())
   },
-
-  patch: async <T>(endpoint: string, data: any): Promise<T> => {
+  put: <T>(endpoint: string, data: any): Promise<T> => {
     const token = authApi.getToken()
-    if (!token) {
-      throw new Error("Not authenticated")
-    }
-
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      method: 'PATCH',
+    if (!token) throw new Error("Not authenticated")
+    return fetch(`${API_URL}${endpoint}`, {
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify(data),
-    })
-
-    if (!response.ok) {
-      const error: ApiError = await response.json()
-      throw new Error(error.message || "Request failed")
-    }
-
-    return response.json()
+      body: JSON.stringify(data)
+    }).then(res => res.json())
   },
+  delete: <T>(endpoint: string): Promise<T> => {
+    const token = authApi.getToken()
+    if (!token) throw new Error("Not authenticated")
+    return fetch(`${API_URL}${endpoint}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    }).then(res => res.json())
+  }
 }
 
 export const loginSchema = z.object({
@@ -222,6 +196,20 @@ export interface MedicalRecord {
   doctor?: Doctor
 }
 
+interface PatientRecord {
+  id: string
+  patientId: string
+  date: string
+  diagnosis: string
+  treatment: string
+  notes: string
+  doctorId: string
+  doctorName: string
+  followUpDate?: string
+  medications?: string[]
+  allergies?: string[]
+}
+
 const isBrowser = typeof window !== 'undefined';
 
 export const authApi = {
@@ -324,89 +312,12 @@ export const statsApi = {
 }
 
 export const patientsApi = {
-  getPatients: async (): Promise<Patient[]> => {
-    const token = authApi.getToken()
-    if (!token) {
-      throw new Error("Not authenticated")
-    }
-
-    const response = await fetch(`${API_URL}/patients`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch patients")
-    }
-
-    return response.json()
-  },
-
-  addPatient: async (data: PatientInput): Promise<Patient> => {
-    const token = authApi.getToken()
-    if (!token) {
-      throw new Error("Not authenticated")
-    }
-
-    const response = await fetch(`${API_URL}/patients`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    })
-
-    if (!response.ok) {
-      const error: ApiError = await response.json()
-      throw new Error(error.message || "Failed to add patient")
-    }
-
-    return response.json()
-  },
-
-  updatePatient: async (id: number, data: Partial<PatientInput>): Promise<Patient> => {
-    const token = authApi.getToken()
-    if (!token) {
-      throw new Error("Not authenticated")
-    }
-
-    const response = await fetch(`${API_URL}/patients/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    })
-
-    if (!response.ok) {
-      const error: ApiError = await response.json()
-      throw new Error(error.message || "Failed to update patient")
-    }
-
-    return response.json()
-  },
-
-  deletePatient: async (id: number): Promise<void> => {
-    const token = authApi.getToken()
-    if (!token) {
-      throw new Error("Not authenticated")
-    }
-
-    const response = await fetch(`${API_URL}/patients/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-
-    if (!response.ok) {
-      const error: ApiError = await response.json()
-      throw new Error(error.message || "Failed to delete patient")
-    }
-  }
+  getPatients: () => api.get<Patient[]>('/patients'),
+  getPatient: (id: string) => api.get<Patient>(`/patients/${id}`),
+  getPatientRecords: (id: string) => api.get<PatientRecord[]>(`/patients/${id}/records`),
+  addPatient: (data: PatientInput) => api.post<Patient>('/patients', data),
+  updatePatient: (id: number, data: Partial<PatientInput>) => api.put<Patient>(`/patients/${id}`, data),
+  deletePatient: (id: number) => api.delete<void>(`/patients/${id}`)
 }
 
 const getAuthHeaders = () => {

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../../db';
-import { appointments, doctorProfiles, patientProfiles, users } from '../../db/schema';
+import { appointments, doctorProfiles, patientProfiles, users, medicalRecords } from '../../db/schema';
 import { eq, and, between, or, sql, gte, lte, asc, lt, desc } from 'drizzle-orm';
 import { z } from 'zod/v4';
 
@@ -51,7 +51,14 @@ const appointmentSchema = z.object({
     status: z.enum(['scheduled', 'completed', 'cancelled', 'no_show']).optional()
 }).strict();
 
-const updateAppointmentSchema = appointmentSchema.partial();
+const updateAppointmentSchema = z.object({
+    status: z.enum(['scheduled', 'completed', 'cancelled']),
+    diagnosis: z.string().optional(),
+    treatment: z.string().optional(),
+    notes: z.string().optional(),
+    medications: z.array(z.string()).optional(),
+    followUpDate: z.string().optional()
+});
 
 const statusSchema = z.enum(['scheduled', 'cancelled', 'completed']);
 
@@ -632,7 +639,7 @@ export async function updateAppointment(req: Request, res: Response): Promise<an
         
         const [updatedAppointment] = await db.update(appointments)
             .set({
-                ...updateData,
+                status: updateData.status,
                 updatedAt: new Date()
             })
             .where(eq(appointments.id, Number(id)))
@@ -640,6 +647,26 @@ export async function updateAppointment(req: Request, res: Response): Promise<an
             
         if (!updatedAppointment) {
             return res.status(404).json({ error: 'Appointment not found' });
+        }
+
+        // If appointment is completed and medical data is provided, create a medical record
+        if (updateData.status === 'completed' && (updateData.diagnosis || updateData.treatment)) {
+            const [medicalRecord] = await db.insert(medicalRecords)
+                .values({
+                    patientId: updatedAppointment.patientId,
+                    doctorId: updatedAppointment.doctorId,
+                    diagnosis: updateData.diagnosis || '',
+                    prescription: updateData.treatment || '',
+                    notes: updateData.notes,
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                })
+                .returning();
+
+            return res.json({
+                appointment: updatedAppointment,
+                medicalRecord
+            });
         }
         
         return res.json(updatedAppointment);

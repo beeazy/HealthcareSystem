@@ -35,6 +35,7 @@ import { doctorSchema } from "@/lib/api"
 import { Pencil, Trash2, Plus } from "lucide-react"
 import { Loading } from "@/components/ui/loading"
 import { Layout } from "@/components/Layout"
+import Navigation from "@/components/Navigation"
 
 export default function DoctorsPage() {
   const { user } = useAuth()
@@ -122,7 +123,11 @@ export default function DoctorsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div>
+      <Navigation />
+
+      <Layout>
+      <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Doctors</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -284,6 +289,8 @@ export default function DoctorsPage() {
           </Table>
         </div>
       </div>
+    </div>
+      </Layout>
     </div>
   )
 } 
