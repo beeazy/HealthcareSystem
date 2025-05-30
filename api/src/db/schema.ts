@@ -90,4 +90,19 @@ export const medicalRecords = pgTable('medical_records', {
     notes: text('notes'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}); 
+});
+
+export const medicalRecordsRelations = relations(medicalRecords, ({ one }) => ({
+    patient: one(users, {
+        fields: [medicalRecords.patientId],
+        references: [users.id],
+    }),
+    doctor: one(users, {
+        fields: [medicalRecords.doctorId],
+        references: [users.id],
+    }),
+    appointment: one(appointments, {
+        fields: [medicalRecords.appointmentId],
+        references: [appointments.id],
+    }),
+})); 

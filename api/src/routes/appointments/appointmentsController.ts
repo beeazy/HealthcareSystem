@@ -285,7 +285,7 @@ export async function viewSchedule(req: Request, res: Response): Promise<any> {
 export async function changeStatus(req: Request, res: Response): Promise<any> {
     try {
         const { id } = req.params;
-        const { status } = req.body;
+        const { status, diagnosis, prescription, notes } = req.body;
 
         const appointmentId = Number(id);
         if (isNaN(appointmentId)) {
@@ -294,6 +294,16 @@ export async function changeStatus(req: Request, res: Response): Promise<any> {
 
         const validatedStatus = statusSchema.parse(status);
 
+        // Get the appointment first to check if it exists and get patient/doctor info
+        const appointment = await db.query.appointments.findFirst({
+            where: eq(appointments.id, appointmentId)
+        });
+
+        if (!appointment) {
+            return res.status(404).json({ error: 'Appointment not found' });
+        }
+
+        // Update appointment status
         const [updatedAppointment] = await db.update(appointments)
             .set({
                 status: validatedStatus,
@@ -302,8 +312,22 @@ export async function changeStatus(req: Request, res: Response): Promise<any> {
             .where(eq(appointments.id, appointmentId))
             .returning();
 
-        if (!updatedAppointment) {
-            return res.status(404).json({ error: 'Appointment not found' });
+        // If appointment is being marked as completed, create a medical record
+        if (validatedStatus === 'completed') {
+            // Validate required fields for medical record
+            if (!diagnosis) {
+                return res.status(400).json({ error: 'Diagnosis is required when completing an appointment' });
+            }
+
+            // Create medical record
+            await db.insert(medicalRecords).values({
+                patientId: appointment.patientId,
+                doctorId: appointment.doctorId,
+                appointmentId: appointment.id,
+                diagnosis: diagnosis,
+                prescription: prescription,
+                notes: notes
+            });
         }
 
         res.json(updatedAppointment);
@@ -650,7 +674,7 @@ export async function updateAppointment(req: Request, res: Response): Promise<an
         }
 
         // If appointment is completed and medical data is provided, create a medical record
-        if (updateData.status === 'completed' && (updateData.diagnosis || updateData.treatment)) {
+        if (updateData.status === 'completed') {
             const [medicalRecord] = await db.insert(medicalRecords)
                 .values({
                     patientId: updatedAppointment.patientId,

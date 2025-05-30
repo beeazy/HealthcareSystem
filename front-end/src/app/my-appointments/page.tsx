@@ -139,7 +139,10 @@ export default function MyAppointmentsPage() {
   }
 
   const handleTimeSelect = (time: string) => {
-    setSelectedTime(time)
+    // Ensure time is in HH:MM format with leading zeros
+    const [hours, minutes] = time.split(':')
+    const formattedTime = `${hours.padStart(2, '0')}:${minutes}`
+    setSelectedTime(formattedTime)
     setShowConfirmDialog(true)
   }
 
@@ -147,7 +150,10 @@ export default function MyAppointmentsPage() {
     try {
       setBookingLoading(true)
       
-      const appointmentDate = `${selectedDate}T${selectedTime}:00`
+      // Ensure time is in HH:MM format with leading zeros
+      const [hours, minutes] = selectedTime.split(':')
+      const formattedTime = `${hours.padStart(2, '0')}:${minutes}`
+      const appointmentDate = `${selectedDate}T${formattedTime}:00`
       
       const data = {
         patientId: user?.id || 0,
@@ -157,7 +163,7 @@ export default function MyAppointmentsPage() {
       }
 
       // Validate appointment time
-      if (!validateAppointmentTime(selectedDate, selectedTime, parseInt(selectedDoctor))) {
+      if (!validateAppointmentTime(selectedDate, formattedTime, parseInt(selectedDoctor))) {
         return
       }
 

@@ -7,10 +7,11 @@ import { Layout } from '@/components/Layout'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { format, parseISO, isSameDay } from 'date-fns'
 import { toast } from 'sonner'
-import { CalendarIcon, X } from 'lucide-react'
+import { CalendarIcon, X, ExternalLink } from 'lucide-react'
 import { Loading } from "@/components/ui/loading"
 import Navigation from '@/components/Navigation'
 import { z } from 'zod'
+import Link from 'next/link'
 
 interface AppointmentWithPatient extends Omit<Appointment, 'patient'> {
   patientId: number
@@ -177,9 +178,17 @@ export default function DoctorAppointmentsPage() {
                   <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
                     <div>
                       <h3 className="text-xl font-semibold text-gray-900">Complete Appointment</h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Patient ID: {selectedAppointment.patientId} • {formatDateTime(selectedAppointment.startTime)}
-                      </p>
+                      <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                        <Link 
+                          href={`/patient-records/${selectedAppointment.patientId}`}
+                          className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700 hover:underline"
+                        >
+                          Patient ID: {selectedAppointment.patientId}
+                          <ExternalLink className="h-3 w-3" />
+                        </Link>
+                        <span>•</span>
+                        <span>{formatDateTime(selectedAppointment.startTime)}</span>
+                      </div>
                     </div>
                     <button
                       onClick={() => {
@@ -269,9 +278,13 @@ export default function DoctorAppointmentsPage() {
                         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-lg border border-gray-100 p-4 hover:border-indigo-100 transition-colors duration-200"
                       >
                         <div className="space-y-1">
-                          <p className="font-medium text-gray-900">
+                          <Link 
+                            href={`/patient-records/${appointment.patientId}`}
+                            className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700 hover:underline"
+                          >
                             Patient ID: {appointment.patientId}
-                          </p>
+                            <ExternalLink className="h-3 w-3" />
+                          </Link>
                           <p className="text-sm text-gray-500">
                             {formatDateTime(appointment.startTime)}
                           </p>
@@ -320,9 +333,13 @@ export default function DoctorAppointmentsPage() {
                         className="rounded-lg border border-gray-100 p-4 hover:border-gray-200 transition-colors duration-200"
                       >
                         <div className="space-y-1">
-                          <p className="font-medium text-gray-900">
+                          <Link 
+                            href={`/patient-records/${appointment.patientId}`}
+                            className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700 hover:underline"
+                          >
                             Patient ID: {appointment.patientId}
-                          </p>
+                            <ExternalLink className="h-3 w-3" />
+                          </Link>
                           <p className="text-sm text-gray-500">
                             {formatDateTime(appointment.startTime)}
                           </p>

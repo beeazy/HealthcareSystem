@@ -386,8 +386,8 @@ export const appointmentsApi = {
   },
 
   updateAppointment: async (id: number, data: { status: 'scheduled' | 'completed' | 'cancelled' }) => {
-    const response = await fetch(`${API_URL}/appointments/${id}`, {
-      method: 'PATCH',
+    const response = await fetch(`${API_URL}/appointments/${id}/status`, {
+      method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
     })

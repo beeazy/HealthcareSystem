@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { Layout } from "@/components/Layout"
 import { Loading } from "@/components/ui/loading"
 import { FileText, Calendar, User, Stethoscope, Clock, AlertCircle } from "lucide-react"
+import Navigation from "@/components/Navigation"
 
 interface PatientRecord {
   id: string
@@ -88,6 +89,7 @@ export default function PatientRecordsPage() {
 
   return (
     <ProtectedRoute allowedRoles={['admin', 'doctor']}>
+      <Navigation />
       <Layout>
         <div className="space-y-8">
           {/* Patient Overview */}
@@ -152,7 +154,7 @@ export default function PatientRecordsPage() {
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">{record.date}</p>
-                          <p className="text-sm text-gray-600">Dr. {record.doctorName}</p>
+                          <p className="text-sm text-gray-600">{record.doctorName}</p>
                         </div>
                       </div>
                       {record.followUpDate && (

@@ -12,8 +12,8 @@ router.get('/doctor', isDoctor as RequestHandler, getDoctorAppointments as Reque
 
 router.get('/slots', getAvailableSlots as RequestHandler);
 
-router.get('/schedule', isAdmin as RequestHandler, viewSchedule as RequestHandler);
-router.put('/:id/status', isAdmin as RequestHandler, changeStatus as RequestHandler);
+router.get('/schedule', viewSchedule as RequestHandler);
+router.put('/:id/status', isDoctor as RequestHandler, changeStatus as RequestHandler);
 
 router.get('/', getAllAppointments as RequestHandler);
 
