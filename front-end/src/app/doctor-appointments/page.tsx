@@ -12,6 +12,21 @@ import { Loading } from "@/components/ui/loading"
 import Navigation from '@/components/Navigation'
 import { z } from 'zod'
 import Link from 'next/link'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Calendar } from "@/components/ui/calendar"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 interface AppointmentWithPatient extends Omit<Appointment, 'patient'> {
   patientId: number
@@ -160,46 +175,50 @@ export default function DoctorAppointmentsPage() {
                   All Appointments
                 </button>
                 <div className="relative">
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full appearance-none rounded-lg border border-gray-300 bg-white px-4 py-2 pr-10 text-sm shadow-sm transition-colors hover:border-indigo-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  />
-                  <CalendarIcon className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !selectedDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {selectedDate ? format(new Date(selectedDate), "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate ? new Date(selectedDate) : undefined}
+                        onSelect={(date) => setSelectedDate(date ? date.toISOString().split('T')[0] : '')}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </div>
 
             {/* Medical Record Form Modal */}
             {showMedicalForm && selectedAppointment && (
-              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 animate-fade-in">
-                  <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-900">Complete Appointment</h3>
-                      <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-                        <Link 
-                          href={`/patient-records/${selectedAppointment.patientId}`}
-                          className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700 hover:underline"
-                        >
-                          Patient ID: {selectedAppointment.patientId}
-                          <ExternalLink className="h-3 w-3" />
-                        </Link>
-                        <span>•</span>
-                        <span>{formatDateTime(selectedAppointment.startTime)}</span>
-                      </div>
+              <Dialog open={showMedicalForm} onOpenChange={setShowMedicalForm}>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Complete Appointment</DialogTitle>
+                    <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                      <Link 
+                        href={`/patient-records/${selectedAppointment.patientId}`}
+                        className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700 hover:underline"
+                      >
+                        Patient ID: {selectedAppointment.patientId}
+                        <ExternalLink className="h-3 w-3" />
+                      </Link>
+                      <span>•</span>
+                      <span>{formatDateTime(selectedAppointment.startTime)}</span>
                     </div>
-                    <button
-                      onClick={() => {
-                        setShowMedicalForm(false)
-                        setSelectedAppointment(null)
-                      }}
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
-                  </div>
+                  </DialogHeader>
                   <div className="space-y-5">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">Diagnosis</label>
@@ -258,8 +277,8 @@ export default function DoctorAppointmentsPage() {
                       </button>
                     </div>
                   </div>
-                </div>
-              </div>
+                </DialogContent>
+              </Dialog>
             )}
 
             {/* Upcoming Appointments */}

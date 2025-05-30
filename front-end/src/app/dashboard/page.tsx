@@ -7,8 +7,15 @@ import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { Layout } from "@/components/Layout"
 import { Users, Stethoscope, Calendar, UserCheck, Activity } from "lucide-react"
 import { Loading } from "@/components/ui/loading"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart"
+
 interface Stats {
   totalPatients: number
   totalDoctors: number
@@ -30,7 +37,7 @@ const StatCard = ({ title, value, icon: Icon, color }: { title: string; value: n
         <p className="text-sm font-medium text-gray-600">{title}</p>
         <p className="mt-2 text-3xl font-bold text-gray-900">{value}</p>
       </div>
-      <div className={`rounded-full p-3 ${color}`}>
+      <div className={`rounded-full p-3 bg-primary`}>
         <Icon className="h-6 w-6 text-white" />
       </div>
     </div>
@@ -77,6 +84,19 @@ export default function Dashboard() {
     }
   }
 
+  const appointmentData = getAppointmentData()
+  const chartData = appointmentData.months.map((month, index) => ({
+    month,
+    appointments: appointmentData.counts[index]
+  }))
+
+  const chartConfig = {
+    appointments: {
+      label: "Appointments",
+      color: "hsl(var(--primary))",
+    },
+  } satisfies ChartConfig
+
   if (loading) {
     return (
       <Layout>
@@ -96,8 +116,6 @@ export default function Dashboard() {
       </Layout>
     )
   }
-
-  const appointmentData = getAppointmentData()
 
   return (
     <ProtectedRoute allowedRoles={['admin', 'doctor', 'patient']}>
@@ -169,20 +187,22 @@ export default function Dashboard() {
                 <Activity className="h-5 w-5 text-gray-400" />
               </div>
               <div className="mt-6">
-                <div className="flex h-48 items-end justify-between space-x-1">
-                  {appointmentData.counts.map((count, index) => (
-                    <div
-                      key={index}
-                      className="w-8 rounded-t bg-primary/80 transition-all hover:bg-primary"
-                      style={{ height: `${(count / Math.max(...appointmentData.counts)) * 100}%` }}
+                <ChartContainer config={chartConfig} className="h-[300px]">
+                  <BarChart accessibilityLayer data={chartData}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="month"
+                      tickLine={false}
+                      tickMargin={10}
+                      axisLine={false}
                     />
-                  ))}
-                </div>
-                <div className="mt-4 flex justify-between text-xs text-gray-600">
-                  {appointmentData.months.map((month, index) => (
-                    <span key={index} className="w-8 text-center">{month}</span>
-                  ))}
-                </div>
+                    <ChartTooltip
+                      cursor={false}
+                      content={<ChartTooltipContent hideLabel />}
+                    />
+                    <Bar dataKey="appointments" fill="var(--color-appointments)" radius={8} />
+                  </BarChart>
+                </ChartContainer>
               </div>
             </div>
           )}
@@ -193,19 +213,13 @@ export default function Dashboard() {
               <p className="mt-2 text-gray-600">
                 You can manage your appointments and view your medical records from here.
               </p>
-              <div className="mt-4 flex gap-4">
+              <div className="mt-4">
                 <button 
-                onClick={() => router.push('/my-appointments')}
-                
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors">
+                  onClick={() => router.push('/my-appointments')}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
+                >
                   Schedule Appointment
                 </button>
-                <Link
-                  href={`/patient-records/${user?.id}`}
-                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  View Medical Records
-                </Link>
               </div>
             </div>
           )}
@@ -213,4 +227,4 @@ export default function Dashboard() {
       </Layout>
     </ProtectedRoute>
   )
-} 
+}

@@ -153,7 +153,7 @@ export default function PatientRecordsPage() {
                           <Calendar className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">{record.date}</p>
+                          <p className="font-medium text-gray-900">{new Date(record.date).toLocaleDateString()}</p>
                           <p className="text-sm text-gray-600">{record.doctorName}</p>
                         </div>
                       </div>

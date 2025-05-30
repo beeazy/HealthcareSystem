@@ -262,7 +262,21 @@ export async function viewAllRecordsForAPatient(req: Request, res: Response): Pr
             orderBy: (records, { desc }) => [desc(records.createdAt)]
         });
 
-        res.json(records);
+        // Transform the records to match the frontend interface
+        const transformedRecords = records.map(record => ({
+            id: record.id,
+            patientId: record.patientId,
+            date: record.createdAt.toISOString(),
+            diagnosis: record.diagnosis,
+            treatment: record.prescription || '',
+            notes: record.notes || '',
+            doctorId: record.doctorId,
+            doctorName: record.doctor.fullName,
+            medications: record.prescription ? [record.prescription] : [],
+            allergies: []
+        }));
+
+        res.json(transformedRecords);
     } catch (error) {
         console.error('Error fetching patient records:', error);
         res.status(500).json({ error: 'Failed to fetch patient records' });

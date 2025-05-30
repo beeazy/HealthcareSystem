@@ -73,3 +73,11 @@ export const isPatient = (req: Request, res: Response, next: NextFunction) => {
     }
     next();
 }; 
+
+export const isRequestingAuthorizedData = (req: Request, res: Response, next: NextFunction) => {
+    if (Number(req.params.id) !== req.user?.userId) {
+        return res.status(403).json({ error: 'Unauthorized' });
+    }
+    next();
+};
+

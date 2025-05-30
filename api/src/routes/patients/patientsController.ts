@@ -3,6 +3,7 @@ import { db } from '../../db';
 import { users, patientProfiles, medicalRecords, appointments } from '../../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod/v4';
+import bcrypt from 'bcrypt';
 
 interface CustomJwtPayload {
     userId: number;
@@ -136,9 +137,12 @@ export async function addPatient(req: Request, res: Response): Promise<any> {
     try {
         const validatedData = patientSchema.parse(req.body);
         
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(validatedData.password, 10);
+        
         const [user] = await db.insert(users).values({
             email: validatedData.email,
-            password: validatedData.password, // Note: Should be hashed in production
+            password: hashedPassword, // Store the hashed password
             fullName: validatedData.fullName,
             phone: validatedData.phone,
             role: 'patient',
@@ -152,8 +156,9 @@ export async function addPatient(req: Request, res: Response): Promise<any> {
             insuranceNumber: validatedData.insuranceNumber,
         }).returning();
 
+        const { password, ...userWithoutPassword } = user;
         res.status(201).json({
-            ...user,
+            ...userWithoutPassword,
             patientProfile
         });
     } catch (error) {
@@ -433,7 +438,9 @@ export async function getPatient(req: Request, res: Response): Promise<any> {
             return;
         }
 
-        res.json(patient);
+        // Destructure to omit password from the response
+        const { password, ...patientWithoutPassword } = patient;
+        res.json(patientWithoutPassword);
     } catch (error) {
         console.error('Error fetching patient:', error);
         res.status(500).json({ error: 'Failed to fetch patient' });
@@ -515,7 +522,7 @@ export async function getPatientRecords(req: Request, res: Response): Promise<an
             date: record.createdAt.toISOString(),
             diagnosis: record.diagnosis,
             treatment: record.prescription || '',
-            notes: record.notes,
+            notes: record.notes || '',
             doctorId: record.doctorId,
             doctorName: record.doctor.fullName,
             medications: record.prescription ? [record.prescription] : [],

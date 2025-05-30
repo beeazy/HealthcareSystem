@@ -45,12 +45,12 @@ export const navigationItems: NavigationItem[] = [
     roles: ['patient'],
     requiresAuth: true
   },
-  {
-    title: 'Medical Records',
-    href: '/medical-records',
-    roles: ['admin', 'doctor', 'patient'],
-    requiresAuth: true
-  }
+  // {
+  //   title: 'Medical Records',
+  //   href: '/medical-records',
+  //   roles: ['admin', 'doctor', 'patient'],
+  //   requiresAuth: true
+  // }
 ]
 
 export function getFilteredNavigation(userRole?: UserRole, isAuthenticated: boolean = false) {

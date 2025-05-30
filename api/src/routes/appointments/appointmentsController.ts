@@ -285,7 +285,7 @@ export async function viewSchedule(req: Request, res: Response): Promise<any> {
 export async function changeStatus(req: Request, res: Response): Promise<any> {
     try {
         const { id } = req.params;
-        const { status, diagnosis, prescription, notes } = req.body;
+        const { status, diagnosis, treatment, prescription, notes } = req.body;
 
         const appointmentId = Number(id);
         if (isNaN(appointmentId)) {
@@ -325,7 +325,7 @@ export async function changeStatus(req: Request, res: Response): Promise<any> {
                 doctorId: appointment.doctorId,
                 appointmentId: appointment.id,
                 diagnosis: diagnosis,
-                prescription: prescription,
+                prescription: treatment || prescription,
                 notes: notes
             });
         }
@@ -554,29 +554,33 @@ export async function getAvailableSlots(req: Request, res: Response): Promise<an
             )
         });
 
-        // Create a map of booked times
-        const bookedTimes = new Set(
-            existingAppointments.map(apt => {
-                const aptDate = new Date(apt.startTime);
-                return `${aptDate.getHours()}:${aptDate.getMinutes().toString().padStart(2, '0')}`;
-            })
-        );
-
         // Generate available slots (30-minute intervals)
         for (let hour = startHour; hour < endHour; hour++) {
             for (let minute = 0; minute < 60; minute += 30) {
                 const timeString = `${hour}:${minute.toString().padStart(2, '0')}`;
                 const slotTime = new Date(selectedDate);
                 slotTime.setHours(hour, minute, 0, 0);
+                const slotEndTime = new Date(slotTime.getTime() + 30 * 60000); // 30 minutes later
 
                 // Skip past times
                 if (slotTime < new Date()) {
                     continue;
                 }
 
+                // Check if this slot overlaps with any existing appointment
+                const isAvailable = !existingAppointments.some(apt => {
+                    const aptStart = new Date(apt.startTime);
+                    const aptEnd = new Date(apt.endTime);
+                    return (
+                        (slotTime >= aptStart && slotTime < aptEnd) || // Slot starts during an appointment
+                        (slotEndTime > aptStart && slotEndTime <= aptEnd) || // Slot ends during an appointment
+                        (slotTime <= aptStart && slotEndTime >= aptEnd) // Slot completely contains an appointment
+                    );
+                });
+
                 slots.push({
                     time: timeString,
-                    available: !bookedTimes.has(timeString)
+                    available: isAvailable
                 });
             }
         }
