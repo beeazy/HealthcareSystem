@@ -48,8 +48,8 @@ export async function getAppointmentsToday(req: Request, res: Response): Promise
             .from(appointments)
             .where(
                 and(
-                    gte(appointments.appointmentDate, today),
-                    lte(appointments.appointmentDate, tomorrow)
+                    gte(appointments.startTime, today),
+                    lte(appointments.startTime, tomorrow)
                 )
             );
         
@@ -114,13 +114,13 @@ export async function getAppointmentsByMonth(req: Request, res: Response): Promi
 
         const appointmentsByMonth = await db
             .select({
-                month: sql<string>`to_char(${appointments.appointmentDate}, 'Mon')`,
+                month: sql<string>`to_char(${appointments.startTime}, 'Mon')`,
                 count: count()
             })
             .from(appointments)
-            .where(gte(appointments.appointmentDate, sixMonthsAgo))
-            .groupBy(sql`to_char(${appointments.appointmentDate}, 'Mon')`)
-            .orderBy(sql`to_char(${appointments.appointmentDate}, 'Mon')`);
+            .where(gte(appointments.startTime, sixMonthsAgo))
+            .groupBy(sql`to_char(${appointments.startTime}, 'Mon')`)
+            .orderBy(sql`to_char(${appointments.startTime}, 'Mon')`);
 
         res.json({
             months: appointmentsByMonth.map(a => a.month),
