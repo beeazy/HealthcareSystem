@@ -11,8 +11,8 @@ const pool = new Pool({
     connectionString: process.env.DATABASE_URL, // from Supabase
   });
   
-  export const db = drizzle(pool);
-  
+  export const db = drizzle(pool, { schema });
+
 // Test database connection
 pool.connect((err, client, release) => {
     if (err) {
