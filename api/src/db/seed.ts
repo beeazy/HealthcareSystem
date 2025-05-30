@@ -18,35 +18,35 @@ async function seed() {
         password: await hash('password123', 10),
         fullName: 'Kamau Njoroge',
         role: 'patient',
-        phone: '0722334455',
+        phone: '+254 722 334455',
       },
       {
         email: 'wanjiku.muthoni@example.com',
         password: await hash('password123', 10),
         fullName: 'Wanjiku Muthoni',
         role: 'patient',
-        phone: '0722334455',
+        phone: '+254 733 445566',
       },
       {
         email: 'john.doe@example.com',
         password: await hash('password123', 10),
         fullName: 'John Doe',
         role: 'patient',
-        phone: '0722334456',
+        phone: '+254 744 556677',
       },
       {
         email: 'jane.smith@example.com',
         password: await hash('password123', 10),
         fullName: 'Jane Smith',
         role: 'patient',
-        phone: '0722334457',
+        phone: '+254 755 667788',
       },
       {
         email: 'peter.parker@example.com',
         password: await hash('password123', 10),
         fullName: 'Peter Parker',
         role: 'patient',
-        phone: '0722334458',
+        phone: '+254 766 778899',
       }
     ]).returning();
 
@@ -57,35 +57,35 @@ async function seed() {
         dateOfBirth: '1985-06-15',
         gender: 'male',
         insuranceProvider: 'NHIF',
-        insuranceNumber: '1234567890',
+        insuranceNumber: 'NHIF123456',
       },
       {
         userId: patient2.id,
         dateOfBirth: '1990-03-20',
         gender: 'female',
         insuranceProvider: 'NHIF',
-        insuranceNumber: '1234567890',
+        insuranceNumber: 'NHIF654321',
       },
       {
         userId: patient3.id,
         dateOfBirth: '1978-12-05',
         gender: 'male',
-        insuranceProvider: 'SHIF',
-        insuranceNumber: '9876543210',
+        insuranceProvider: 'Britam',
+        insuranceNumber: 'BRITAM987654',
       },
       {
         userId: patient4.id,
         dateOfBirth: '1995-08-15',
         gender: 'female',
         insuranceProvider: 'CIC',
-        insuranceNumber: '4567891230',
+        insuranceNumber: 'CIC456789',
       },
       {
         userId: patient5.id,
         dateOfBirth: '1988-04-25',
         gender: 'male',
-        insuranceProvider: 'Britam',
-        insuranceNumber: '7891234560',
+        insuranceProvider: 'Jubilee',
+        insuranceNumber: 'JUBILEE789123',
       }
     ]);
 
@@ -96,35 +96,35 @@ async function seed() {
         password: await hash('password123', 10),
         fullName: 'Dr. James Ochieng',
         role: 'doctor',
-        phone: '+254 734 567 890',
+        phone: '+254 734 567890',
       },
       {
         email: 'mary.wambui@knh.co.ke',
         password: await hash('password123', 10),
         fullName: 'Dr. Mary Wambui',
         role: 'doctor',
-        phone: '+254 745 678 901',
+        phone: '+254 745 678901',
       },
       {
         email: 'sarah.johnson@knh.co.ke',
         password: await hash('password123', 10),
         fullName: 'Dr. Sarah Johnson',
         role: 'doctor',
-        phone: '+254 756 789 012',
+        phone: '+254 756 789012',
       },
       {
         email: 'michael.chen@knh.co.ke',
         password: await hash('password123', 10),
         fullName: 'Dr. Michael Chen',
         role: 'doctor',
-        phone: '+254 767 890 123',
+        phone: '+254 767 890123',
       },
       {
         email: 'lisa.wang@knh.co.ke',
         password: await hash('password123', 10),
         fullName: 'Dr. Lisa Wang',
         role: 'doctor',
-        phone: '+254 778 901 234',
+        phone: '+254 778 901234',
       }
     ]).returning();
 
@@ -156,90 +156,113 @@ async function seed() {
       },
       {
         userId: doctor5.id,
-        specialization: 'Pediatrics',
+        specialization: 'Dermatology',
         licenseNumber: 'KMPDB567890',
         isActive: false,
       }
     ]);
 
-    // Insert test appointments
-    const today = new Date();
+    // Insert test appointments with proper start and end times
+    const now = new Date();
     const appointmentsData = [
       {
         patientId: patient1.id,
         doctorId: doctor1.id,
-        appointmentDate: new Date(today.setHours(10, 0, 0, 0)),
+        startTime: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0),
+        endTime: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 30),
         status: 'scheduled' as const,
         notes: 'Follow-up for diabetes management',
       },
       {
         patientId: patient2.id,
         doctorId: doctor2.id,
-        appointmentDate: new Date(today.setHours(14, 30, 0, 0)),
+        startTime: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 14, 30),
+        endTime: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 15, 0),
         status: 'scheduled' as const,
         notes: 'Child vaccination schedule',
       },
       {
         patientId: patient3.id,
         doctorId: doctor3.id,
-        appointmentDate: new Date(today.setDate(today.getDate() + 1)),
+        startTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0),
+        endTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 45),
         status: 'scheduled' as const,
         notes: 'Cardiac consultation',
       },
       {
         patientId: patient4.id,
         doctorId: doctor4.id,
-        appointmentDate: new Date(today.setDate(today.getDate() + 2)),
-        status: 'scheduled' as const,
-        notes: 'Neurological assessment',
+        startTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2, 11, 0),
+        endTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2, 11, 30),
+        status: 'no_show' as const,
+        notes: 'Neurological assessment - Patient did not show up',
       },
       {
         patientId: patient5.id,
         doctorId: doctor5.id,
-        appointmentDate: new Date(today.setDate(today.getDate() - 1)),
+        startTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 15, 0),
+        endTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 15, 30),
         status: 'completed' as const,
         notes: 'Regular checkup',
       }
     ];
 
-    await db.insert(appointments).values(appointmentsData);
+    const insertedAppointments = await db.insert(appointments).values(appointmentsData).returning();
 
-    // Insert test medical records
+    // Insert medical records with appointment links
     await db.insert(medicalRecords).values([
+      // Patient 1 - Recent visit
       {
         patientId: patient1.id,
         doctorId: doctor1.id,
+        appointmentId: insertedAppointments[0].id,
         diagnosis: 'Type 2 Diabetes',
         prescription: 'Metformin 500mg twice daily',
-        notes: 'Patient shows good glycemic control. Continue with current medication and lifestyle modifications.',
+        notes: 'Blood sugar levels stable. Continue current medication. Next review in 3 months.',
       },
+      // Patient 1 - Previous visit
+      {
+        patientId: patient1.id,
+        doctorId: doctor1.id,
+        diagnosis: 'Hypertension',
+        prescription: 'Amlodipine 5mg daily',
+        notes: 'Blood pressure: 130/85. Well controlled on current medication.',
+      },
+      // Patient 2 - Recent visit
       {
         patientId: patient2.id,
         doctorId: doctor2.id,
-        diagnosis: 'Malaria',
-        prescription: 'Artemether-Lumefantrine 20/120mg tablets',
-        notes: 'Patient responded well to treatment. Complete full course of medication.',
+        appointmentId: insertedAppointments[1].id,
+        diagnosis: 'Upper Respiratory Tract Infection',
+        prescription: 'Amoxicillin 500mg TID for 5 days',
+        notes: 'Fever, sore throat. Follow up if symptoms persist.',
       },
+      // Patient 3 - Scheduled appointment
       {
         patientId: patient3.id,
         doctorId: doctor3.id,
-        diagnosis: 'Hypertension',
-        prescription: 'Amlodipine 5mg daily',
-        notes: 'Blood pressure readings show improvement. Continue medication and regular monitoring.',
+        appointmentId: insertedAppointments[2].id,
+        diagnosis: 'Hypertension with Cardiac Arrhythmia',
+        prescription: 'Continue current medications. Added Beta blocker.',
+        notes: 'ECG shows occasional PVCs. Monitor and review in 2 weeks.',
       },
+      // Patient 4 - No show appointment
       {
         patientId: patient4.id,
         doctorId: doctor4.id,
-        diagnosis: 'Migraine',
-        prescription: 'Sumatriptan 50mg as needed',
-        notes: 'Patient reports reduced frequency of headaches. Continue current treatment plan.',
+        appointmentId: insertedAppointments[3].id,
+        diagnosis: 'Chronic Migraine - Follow up',
+        prescription: 'Continue Sumatriptan PRN',
+        notes: 'Patient did not attend. Rescheduling recommended.',
       },
+      // Patient 5 - Completed recent visit
       {
         patientId: patient5.id,
         doctorId: doctor5.id,
-        diagnosis: 'Common Cold',
-        prescription: 'Paracetamol 500mg as needed',
-        notes: 'Symptoms improving. Rest and hydration recommended.',
+        appointmentId: insertedAppointments[4].id,
+        diagnosis: 'Seasonal Allergic Rhinitis',
+        prescription: 'Cetirizine 10mg daily PRN',
+        notes: 'Symptoms well controlled. Review if worsening.',
       }
     ]);
 

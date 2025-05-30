@@ -2,43 +2,7 @@
 
 A healthcare management system API built with Express.js, TypeScript, and PostgreSQL.
 
-## Table of Contents
-- [System Overview](#system-overview)
-- [Setup Instructions](#setup-instructions)
-- [API Documentation](#api-documentation)
-- [Database Schema](#database-schema)
-- [Sequence Diagrams](#sequence-diagrams)
-
-## System Overview
-
-This healthcare system provides core functionality for appointment scheduling and patient management. The system is designed with simplicity and security in mind.
-
-### Core Features
-1. **User Management**
-   - Automatic patient registration for new users
-   - Admin-controlled doctor account creation
-   - Role-based access control (patient, doctor, admin)
-
-2. **Appointment Scheduling**
-   - Book appointments with available doctors
-   - Prevent scheduling conflicts
-   - Track appointment status
-   - Manage doctor availability
-
-3. **Patient Management**
-   - Store basic patient information
-   - Track insurance details
-   - View appointment history
-
-4. **Doctor Management**
-   - Maintain doctor profiles
-   - Track specializations
-   - Manage availability
-
-5. **Medical Records** (Optional)
-   - Store patient medical history
-   - Link records to appointments
-   - Secure access control
+## Quick Start
 
 ## Setup Instructions
 
@@ -84,16 +48,11 @@ JWT_EXPIRES_IN="24h"
 # CORS Configuration
 CORS_ORIGIN="http://localhost:3000"
 
-# Rate Limiting
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX=100
+# Update DATABASE_URL and other variables in .env
 ```
 
-5. Initialize the database:
+3. **Initialize database:**
 ```bash
-# Generate migration files
-npm run generate
-
 # Apply migrations
 npm run migrate
 
@@ -101,7 +60,7 @@ npm run migrate
 npm run seed
 ```
 
-6. Start the development server:
+4. **Start development server:**
 ```bash
 npm run dev
 ```
@@ -165,9 +124,12 @@ Authorization: Bearer <token>
   - Query params: `page`, `limit`
   - Response: `{ records: MedicalRecord[], total: number }`
 
-- `POST /medical-records`
-  - Request body: `MedicalRecordCreate`
-  - Response: `MedicalRecord`
+  ## Core Features
+- 👥 User Management (patients, doctors, admins)
+- 📅 Appointment Scheduling
+- 🏥 Patient Records Management
+- 👨‍⚕️ Doctor Profiles & Specializations
+- 📋 Medical Records Tracking
 
 ## Database Schema
 
@@ -209,7 +171,7 @@ erDiagram
         int id PK
         int patientId FK
         int doctorId FK
-        timestamp appointmentDate
+        timestamp startTime
         enum status
         text notes
         timestamp createdAt
@@ -235,12 +197,12 @@ erDiagram
     appointments ||--o{ medical_records : "has"
 ```
 
-### Schema Notes
-- Users table is the single source of truth for all user types (patients, doctors, admins)
-- Doctor availability is determined by appointment scheduling, not a static flag
-- Doctor profiles have an isActive flag for admin-controlled deactivation
-- Patient profiles store insurance information for NHIF and private insurance tracking
-- All timestamps are in UTC
+## Key API Endpoints
+- 👥 User Management (patients, doctors, admins)
+- 📅 Appointment Scheduling
+- 🏥 Patient Records Management
+- 👨‍⚕️ Doctor Profiles & Specializations
+- 📋 Medical Records Tracking
 
 ## Sequence Diagrams
 
