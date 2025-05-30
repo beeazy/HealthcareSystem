@@ -1,76 +1,83 @@
-import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction } from 'express';
 import { db } from '../db';
+import { users, userRoleEnum, doctorProfiles } from '../db/schema';
 import { eq } from 'drizzle-orm';
-import { doctors } from '../db/schema';
 
-const JWT_SECRET = process.env.JWT_SECRET || '';
+type UserRole = typeof userRoleEnum.enumValues[number];
 
+// Extend Express Request type to include user
 declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        userId: number;
-        role: 'admin' | 'doctor';
-        email: string;
-      };
+    namespace Express {
+        interface Request {
+            user?: CustomJwtPayload;
+        }
     }
-  }
 }
 
-export const authenticate = (req: Request, res: Response, next: NextFunction): any => {
-  try {
-    const token = req.headers.authorization?.split(' ')[1];
-    
-    if (!token) {
-      return res.status(401).json({ error: 'Authentication required' });
+interface CustomJwtPayload {
+    userId: number;
+    role: string;
+}
+
+export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as CustomJwtPayload;
+
+        // Verify user still exists
+        const user = await db.query.users.findFirst({
+            where: eq(users.id, decoded.userId),
+        });
+
+        if (!user) {
+            return res.status(401).json({ error: 'User not found' });
+        }
+
+        req.user = decoded;
+        next();
+    } catch (error) {
+        return res.status(401).json({ error: 'Invalid token' });
     }
+};
 
-    const decoded = jwt.verify(token, JWT_SECRET) as {
-      userId: number;
-      role: 'admin' | 'doctor';
-      email: string;
-    };
-
-    req.user = decoded;
+export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+    if (req.user?.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+    }
     next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
 };
 
-export const isAdmin = (req: Request, res: Response, next: NextFunction): any => {
-  if (req.user?.role !== 'admin') {
-    return res.status(403).json({ error: 'Unauthorized' });
-  }
-  next();
-};
-
-export const isActiveDoctor = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
-  try {
-    // Admins have full access
-    if (req.user?.role === 'admin') {
-      return next();
-    }
-
-    // Check if user is a doctor
+export const isDoctor = (req: Request, res: Response, next: NextFunction) => {
     if (req.user?.role !== 'doctor') {
-      return res.status(403).json({ error: 'Unauthorized' });
+        return res.status(403).json({ error: 'Doctor access required' });
     }
-
-    // Check if the doctor is active
-    const [doctor] = await db
-      .select()
-      .from(doctors)
-      .where(eq(doctors.email, req.user.email));
-
-    if (!doctor || !doctor.isActive) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
     next();
-  } catch (error) {
-    console.error('Doctor access check error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+};
+
+export const isActiveDoctor = (req: Request, res: Response, next: NextFunction) => {
+    if (req.user?.role !== 'doctor' || !doctorProfiles.isActive) {
+        return res.status(403).json({ message: 'Active doctor access required' });
+    }
+    next();
+};
+
+export const isPatient = (req: Request, res: Response, next: NextFunction) => {
+    if (req.user?.role !== 'patient') {
+        return res.status(403).json({ error: 'Patient access required' });
+    }
+    next();
 }; 
+
+export const isRequestingAuthorizedData = (req: Request, res: Response, next: NextFunction) => {
+    if (Number(req.params.id) !== req.user?.userId) {
+        return res.status(403).json({ error: 'Unauthorized' });
+    }
+    next();
+};
+

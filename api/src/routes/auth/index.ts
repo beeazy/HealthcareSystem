@@ -1,19 +1,18 @@
-import { Router } from 'express';
-import { login, createUser, createAdmin, loginSchema, createUserSchema, createAdminSchema } from './authController';
-import { validate } from '../../middlewares/validationMiddleware';
+import { Router, RequestHandler } from 'express';
+import { register, login, createDoctor, createAdmin, getUsers } from './authController';
+import { validateRequest } from '../../middlewares/validationMiddleware';
+import { registerSchema, loginSchema, createDoctorSchema, createAdminSchema } from './auth.schema';
 import { authenticate, isAdmin } from '../../middlewares/authMiddleware';
-import { getUsers } from './authController';
 
 const router = Router();
 
 // Public routes
-router.post('/login', validate(loginSchema), login);
-
-// Admin creation route (protected by admin key)
-router.post('/create-admin', validate(createAdminSchema), createAdmin);
+router.post('/register', validateRequest(registerSchema) as RequestHandler, register);
+router.post('/login', validateRequest(loginSchema) as RequestHandler, login);
+router.post('/create-admin', validateRequest(createAdminSchema) as RequestHandler, createAdmin);
 
 // Protected routes
-router.post('/register', authenticate, isAdmin, validate(createUserSchema), createUser);
-router.get('/users', authenticate, isAdmin, getUsers);
+router.post('/doctors', authenticate as RequestHandler, isAdmin as RequestHandler, validateRequest(createDoctorSchema) as RequestHandler, createDoctor);
+router.get('/users', authenticate as RequestHandler, isAdmin as RequestHandler, getUsers);
 
 export default router;

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { appointmentsApi, doctorsApi, patientsApi, type Appointment, type AppointmentInput, type Doctor, type Patient, authApi } from "@/lib/api"
+import { appointmentsApi, doctorsApi, patientsApi, type Appointment, type Doctor, type Patient, authApi } from "@/lib/api"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import {
@@ -31,9 +31,8 @@ import {
 } from "@/components/ui/form"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { appointmentSchema } from "@/lib/api"
 import { format, parseISO, isBefore, isAfter, addMinutes } from "date-fns"
-import { Pencil, Trash2, Plus, Check, X } from "lucide-react"
+import { Pencil, Plus, Check, X } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -42,6 +41,27 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { z } from "zod"
+import { Layout } from "@/components/Layout"
+import { Loading } from "@/components/ui/loading"
+import { CalendarIcon } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
+
+// Define the appointment form schema
+const appointmentFormSchema = z.object({
+  patientId: z.number().min(1, "Please select a patient"),
+  doctorId: z.number().min(1, "Please select a doctor"),
+  startTime: z.string().min(1, "Please select a date and time"),
+  notes: z.string().optional(),
+  status: z.enum(["scheduled", "completed", "cancelled"]).optional(),
+})
+
+type AppointmentFormValues = z.infer<typeof appointmentFormSchema>
 
 export default function AppointmentsPage() {
   const router = useRouter()
@@ -55,19 +75,18 @@ export default function AppointmentsPage() {
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0])
 
-  const form = useForm<z.infer<typeof appointmentSchema>>({
-    resolver: zodResolver(appointmentSchema),
+  const form = useForm<AppointmentFormValues>({
+    resolver: zodResolver(appointmentFormSchema),
     defaultValues: {
       patientId: 0,
       doctorId: 0,
-      appointmentDate: new Date().toISOString().slice(0, 16),
+      startTime: new Date().toISOString().slice(0, 16),
       notes: "",
-      status: "scheduled" as const,
+      status: "scheduled",
     },
   })
 
   useEffect(() => {
-    // Check if user is authenticated and has admin role
     const token = authApi.getToken()
     if (!token) {
       router.push('/auth/login')
@@ -90,17 +109,20 @@ export default function AppointmentsPage() {
         doctorsApi.getDoctors(),
         patientsApi.getPatients(),
       ])
-      setDoctors(doctorsData.filter(doctor => doctor.isAvailable && doctor.isActive))
+      setDoctors(doctorsData.filter((doctor: Doctor) => doctor.doctorProfile.isActive))
       setPatients(patientsData)
 
-      // If a doctor is selected, fetch their appointments
       if (selectedDoctor) {
-        const appointmentsData = await appointmentsApi.getAppointments(selectedDoctor.id, selectedDate)
-        setAppointments(appointmentsData)
+        const appointmentsData = await appointmentsApi.getDoctorAppointments()
+        console.log('Doctor appointments:', appointmentsData) // Debug log
+        setAppointments(appointmentsData.filter((app: Appointment) => app.doctorId === selectedDoctor.id))
       } else {
-        setAppointments([])
+        const appointmentsData = await appointmentsApi.getPatientAppointments()
+        console.log('Patient appointments:', appointmentsData) // Debug log
+        setAppointments(appointmentsData)
       }
     } catch (error) {
+      console.error('Error loading data:', error) // Debug log
       toast.error("Failed to load data")
     } finally {
       setIsLoading(false)
@@ -111,29 +133,26 @@ export default function AppointmentsPage() {
     loadData()
   }, [selectedDoctor, selectedDate])
 
-  function validateAppointmentTime(appointmentDate: string, doctorId: number): boolean {
-    const appointmentTime = parseISO(appointmentDate)
+  function validateAppointmentTime(startTime: string, doctorId: number): boolean {
+    const appointmentTime = parseISO(startTime)
     const now = new Date()
 
-    // Check if appointment is in the future
     if (isBefore(appointmentTime, now)) {
       toast.error("Cannot schedule appointments in the past")
       return false
     }
 
-    // Check if appointment is within business hours (8 AM to 6 PM)
     const appointmentHour = appointmentTime.getHours()
     if (appointmentHour < 8 || appointmentHour >= 18) {
       toast.error("Appointments can only be scheduled between 8 AM and 6 PM")
       return false
     }
 
-    // Check for overlapping appointments
     const appointmentEndTime = addMinutes(appointmentTime, 30)
     const hasOverlap = appointments.some(appointment => {
       if (appointment.doctorId !== doctorId || appointment.status === 'cancelled') return false
       
-      const existingStart = parseISO(appointment.appointmentDate)
+      const existingStart = parseISO(appointment.startTime)
       const existingEnd = addMinutes(existingStart, 30)
       
       return (
@@ -150,17 +169,31 @@ export default function AppointmentsPage() {
     return true
   }
 
-  async function onSubmit(data: z.infer<typeof appointmentSchema>) {
+  async function onSubmit(data: AppointmentFormValues) {
     try {
       if (editingAppointment) {
-        await appointmentsApi.updateAppointmentStatus(editingAppointment.id, data.status)
+        if (data.status === 'cancelled') {
+          await appointmentsApi.cancelAppointment(editingAppointment.id)
+        } else {
+          await appointmentsApi.createAppointment({
+            patientId: data.patientId,
+            doctorId: data.doctorId,
+            startTime: data.startTime,
+            notes: data.notes
+          })
+        }
         toast.success("Appointment updated successfully")
       } else {
-        if (!validateAppointmentTime(data.appointmentDate, data.doctorId)) {
+        if (!validateAppointmentTime(data.startTime, data.doctorId)) {
           return
         }
 
-        await appointmentsApi.scheduleAppointment(data)
+        await appointmentsApi.createAppointment({
+          patientId: data.patientId,
+          doctorId: data.doctorId,
+          startTime: data.startTime,
+          notes: data.notes
+        })
         toast.success("Appointment scheduled successfully")
       }
       setIsDialogOpen(false)
@@ -184,7 +217,16 @@ export default function AppointmentsPage() {
 
   async function handleStatusChange(id: number, status: 'scheduled' | 'cancelled' | 'completed') {
     try {
-      await appointmentsApi.updateAppointmentStatus(id, status)
+      if (status === 'cancelled') {
+        await appointmentsApi.cancelAppointment(id)
+      } else {
+        await appointmentsApi.createAppointment({
+          patientId: appointments.find(app => app.id === id)?.patientId || 0,
+          doctorId: appointments.find(app => app.id === id)?.doctorId || 0,
+          startTime: appointments.find(app => app.id === id)?.startTime || "",
+          notes: appointments.find(app => app.id === id)?.notes || ""
+        })
+      }
       toast.success("Appointment status updated successfully")
       loadData()
     } catch (error) {
@@ -197,7 +239,7 @@ export default function AppointmentsPage() {
     form.reset({
       patientId: appointment.patientId,
       doctorId: appointment.doctorId,
-      appointmentDate: new Date(appointment.appointmentDate).toISOString().slice(0, 16),
+      startTime: new Date(appointment.startTime).toISOString().slice(0, 16),
       notes: appointment.notes || "",
       status: appointment.status,
     })
@@ -205,10 +247,15 @@ export default function AppointmentsPage() {
   }
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return (
+      <Layout>
+        <Loading message="Loading appointments..." />
+      </Layout>
+    )
   }
 
   return (
+    <Layout>
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Appointments</h1>
@@ -227,17 +274,35 @@ export default function AppointmentsPage() {
               <SelectContent>
                 {doctors.map((doctor) => (
                   <SelectItem key={doctor.id} value={doctor.id.toString()}>
-                    {`${doctor.firstName} ${doctor.lastName} - ${doctor.specialization}`}
+                    {`${doctor.fullName} - ${doctor.doctorProfile.specialization}`}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-[150px]"
-            />
+            <div className="relative">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[150px] justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(new Date(selectedDate), "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate ? new Date(selectedDate) : undefined}
+                    onSelect={(date) => setSelectedDate(date ? date.toISOString().split('T')[0] : '')}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
           {isAdmin && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -303,7 +368,7 @@ export default function AppointmentsPage() {
                             <SelectContent>
                               {doctors.map((doctor) => (
                                 <SelectItem key={doctor.id} value={doctor.id.toString()}>
-                                  {`${doctor.firstName} ${doctor.lastName} - ${doctor.specialization}`}
+                                  {`${doctor.fullName} - ${doctor.doctorProfile.specialization}`}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -314,7 +379,7 @@ export default function AppointmentsPage() {
                     />
                     <FormField
                       control={form.control}
-                      name="appointmentDate"
+                      name="startTime"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Date & Time</FormLabel>
@@ -408,12 +473,12 @@ export default function AppointmentsPage() {
                 <TableCell>{appointment.patient?.fullName}</TableCell>
                 <TableCell>
                   {appointment.doctor ? 
-                    `${appointment.doctor.firstName} ${appointment.doctor.lastName}` : 
+                    `${appointment.doctor.fullName} - ${appointment.doctor.doctorProfile.specialization}` : 
                     "-"
                   }
                 </TableCell>
                 <TableCell>
-                  {format(new Date(appointment.appointmentDate), "MMM d, yyyy h:mm a")}
+                  {format(new Date(appointment.startTime), "MMM d, yyyy h:mm a")}
                 </TableCell>
                 <TableCell>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium
@@ -460,5 +525,6 @@ export default function AppointmentsPage() {
         </Table>
       </div>
     </div>
+    </Layout>
   )
 } 

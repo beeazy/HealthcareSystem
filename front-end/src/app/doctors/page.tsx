@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { doctorsApi, type Doctor, type DoctorInput } from "@/lib/api"
+import { useAuth } from "@/lib/auth"
 import { toast } from "sonner"
 import {
   Table,
@@ -32,8 +33,12 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { doctorSchema } from "@/lib/api"
 import { Pencil, Trash2, Plus } from "lucide-react"
+import { Loading } from "@/components/ui/loading"
+import { Layout } from "@/components/Layout"
+import Navigation from "@/components/Navigation"
 
 export default function DoctorsPage() {
+  const { user } = useAuth()
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -42,14 +47,12 @@ export default function DoctorsPage() {
   const form = useForm<DoctorInput>({
     resolver: zodResolver(doctorSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
+      fullName: "",
       email: "",
       phone: "",
       specialization: "",
       licenseNumber: "",
-      isAvailable: true,
-      isActive: true,
+      password: "",
     },
   })
 
@@ -101,28 +104,37 @@ export default function DoctorsPage() {
   function handleEdit(doctor: Doctor) {
     setEditingDoctor(doctor)
     form.reset({
-      firstName: doctor.firstName,
-      lastName: doctor.lastName,
+      fullName: doctor.fullName,
       email: doctor.email,
       phone: doctor.phone || "",
-      specialization: doctor.specialization,
-      licenseNumber: doctor.licenseNumber,
-      isAvailable: doctor.isAvailable,
-      isActive: doctor.isActive,
+      specialization: doctor.doctorProfile.specialization,
+      licenseNumber: doctor.doctorProfile.licenseNumber,
+      password: "",
     })
     setIsDialogOpen(true)
   }
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return (
+      <Layout>
+        <Loading message="Loading doctors..." />
+      </Layout>
+    )
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div>
+      <Navigation />
+
+      <Layout>
+      <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Doctors</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
+
+          {/* Add Doctor Button for the admin only */}
+          {user?.role === "admin" && (
+            <DialogTrigger asChild>
             <Button onClick={() => {
               setEditingDoctor(null)
               form.reset()
@@ -131,6 +143,7 @@ export default function DoctorsPage() {
               Add Doctor
             </Button>
           </DialogTrigger>
+          )}
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
@@ -142,23 +155,10 @@ export default function DoctorsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="firstName"
+                    name="fullName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>First Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="lastName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Last Name</FormLabel>
+                        <FormLabel>Full Name</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -229,58 +229,68 @@ export default function DoctorsPage() {
       </div>
 
       <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Specialization</TableHead>
-              <TableHead>License Number</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {doctors.map((doctor) => (
-              <TableRow key={doctor.id}>
-                <TableCell>{`${doctor.firstName} ${doctor.lastName}`}</TableCell>
-                <TableCell>{doctor.email}</TableCell>
-                <TableCell>{doctor.phone || "-"}</TableCell>
-                <TableCell>{doctor.specialization}</TableCell>
-                <TableCell>{doctor.licenseNumber}</TableCell>
-                <TableCell>
-                  {doctor.isActive ? (
-                    doctor.isAvailable ? (
-                      <span className="text-green-600">Available</span>
-                    ) : (
-                      <span className="text-yellow-600">Busy</span>
-                    )
-                  ) : (
-                    <span className="text-red-600">Inactive</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEdit(doctor)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(doctor.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TableCell>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="min-w-[150px]">Name</TableHead>
+                <TableHead className="min-w-[200px]">Email</TableHead>
+                <TableHead className="min-w-[120px]">Phone</TableHead>
+                <TableHead className="min-w-[150px]">Specialization</TableHead>
+                <TableHead className="min-w-[120px]">License</TableHead>
+                <TableHead className="min-w-[100px]">Status</TableHead>
+                {user?.role === "admin" && (
+                  <TableHead className="min-w-[100px] text-right">Actions</TableHead>
+                )}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {doctors.map((doctor) => (
+                <TableRow key={doctor.id}>
+                  <TableCell className="font-medium">{doctor.fullName}</TableCell>
+                  <TableCell className="whitespace-nowrap">{doctor.email}</TableCell>
+                  <TableCell className="whitespace-nowrap">{doctor.phone || "-"}</TableCell>
+                  <TableCell>{doctor.doctorProfile.specialization}</TableCell>
+                  <TableCell className="whitespace-nowrap">{doctor.doctorProfile.licenseNumber}</TableCell>
+                  <TableCell>
+                    {doctor.doctorProfile.isActive ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Active
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        Inactive
+                      </span>
+                    )}
+                  </TableCell>
+                  {user?.role === "admin" && (
+                    <TableCell className="text-right space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(doctor)}
+                        className="h-8 w-8"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(doctor.id)}
+                        className="h-8 w-8"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
+    </div>
+      </Layout>
     </div>
   )
 } 

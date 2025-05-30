@@ -1,19 +1,17 @@
 import { Request, Response } from 'express';
 import { db } from '../../db';
-import { doctors, appointments } from '../../db/schema';
-import { eq } from 'drizzle-orm';
+import { users, doctorProfiles } from '../../db/schema';
+import { eq, and } from 'drizzle-orm';
 import { z } from 'zod/v4';
 
 // Validation schemas
 const doctorSchema = z.object({
-    firstName: z.string().min(2).max(100),
-    lastName: z.string().min(2).max(100),
     email: z.email().max(255),
+    password: z.string().min(6),
+    fullName: z.string().min(2).max(100),
     phone: z.string().max(20).optional(),
     specialization: z.string().min(2).max(100),
     licenseNumber: z.string().min(5).max(50),
-    isAvailable: z.boolean().optional(),
-    isActive: z.boolean().optional(),
 }).strict();
 
 /**
@@ -22,8 +20,10 @@ const doctorSchema = z.object({
  *   get:
  *     tags:
  *       - Doctors
- *     summary: Get all active doctors
- *     description: Retrieve a list of all active doctors in the system
+ *     summary: Get all doctors
+ *     description: Retrieve a list of all doctors in the system, including their profiles
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of doctors retrieved successfully
@@ -33,13 +33,18 @@ const doctorSchema = z.object({
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Doctor'
+ *       401:
+ *         description: Unauthorized - Authentication required
  *       500:
- *         description: Server error
+ *         description: Internal server error
  */
-export async function getDoctors(req: Request, res: Response) {
+export async function getDoctors(req: Request, res: Response): Promise<any> {
     try {
-        const allDoctors = await db.query.doctors.findMany({
-            where: eq(doctors.isActive, true)
+        const allDoctors = await db.query.users.findMany({
+            where: eq(users.role, 'doctor'),
+            with: {
+                doctorProfile: true
+            }
         });
         res.json(allDoctors);
     } catch (error) {
@@ -55,14 +60,17 @@ export async function getDoctors(req: Request, res: Response) {
  *     tags:
  *       - Doctors
  *     summary: Get doctor by ID
- *     description: Retrieve a specific doctor's details by their ID
+ *     description: Retrieve detailed information about a specific doctor by their ID
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *         description: Doctor ID
+ *           minimum: 1
+ *         description: The unique identifier of the doctor
  *     responses:
  *       200:
  *         description: Doctor details retrieved successfully
@@ -71,11 +79,13 @@ export async function getDoctors(req: Request, res: Response) {
  *             schema:
  *               $ref: '#/components/schemas/Doctor'
  *       400:
- *         description: Invalid doctor ID
+ *         description: Invalid doctor ID format
+ *       401:
+ *         description: Unauthorized - Authentication required
  *       404:
  *         description: Doctor not found
  *       500:
- *         description: Server error
+ *         description: Internal server error
  */
 export async function getDoctorById(req: Request, res: Response): Promise<any> {
     try {
@@ -83,15 +93,23 @@ export async function getDoctorById(req: Request, res: Response): Promise<any> {
         const doctorId = Number(id);
         
         if (isNaN(doctorId)) {
-            return res.status(400).json({ error: 'Invalid doctor ID' });
+            res.status(400).json({ error: 'Invalid doctor ID' });
+            return;
         }
 
-        const doctor = await db.query.doctors.findFirst({
-            where: eq(doctors.id, doctorId)
+        const doctor = await db.query.users.findFirst({
+            where: and(
+                eq(users.id, doctorId),
+                eq(users.role, 'doctor')
+            ),
+            with: {
+                doctorProfile: true
+            }
         });
 
         if (!doctor) {
-            return res.status(404).json({ error: 'Doctor not found' });
+            res.status(404).json({ error: 'Doctor not found' });
+            return;
         }
 
         res.json(doctor);
@@ -107,14 +125,44 @@ export async function getDoctorById(req: Request, res: Response): Promise<any> {
  *   post:
  *     tags:
  *       - Doctors
- *     summary: Add a new doctor
- *     description: Create a new doctor record in the system
+ *     summary: Create new doctor
+ *     description: Register a new doctor in the system with their profile information
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/DoctorInput'
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - fullName
+ *               - specialization
+ *               - licenseNumber
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *               fullName:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               phone:
+ *                 type: string
+ *                 maxLength: 20
+ *               specialization:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               licenseNumber:
+ *                 type: string
+ *                 minLength: 5
+ *                 maxLength: 50
  *     responses:
  *       201:
  *         description: Doctor created successfully
@@ -123,29 +171,41 @@ export async function getDoctorById(req: Request, res: Response): Promise<any> {
  *             schema:
  *               $ref: '#/components/schemas/Doctor'
  *       400:
- *         description: Validation error
+ *         description: Validation error in request body
+ *       401:
+ *         description: Unauthorized - Authentication required
  *       500:
- *         description: Server error
+ *         description: Internal server error
  */
 export async function addDoctor(req: Request, res: Response): Promise<any> {
     try {
         const validatedData = doctorSchema.parse(req.body);
         
-        const [newDoctor] = await db.insert(doctors)
-            .values({
-                ...validatedData,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            })
-            .returning();
+        const [user] = await db.insert(users).values({
+            email: validatedData.email,
+            password: validatedData.password, // Note: Should be hashed in production
+            fullName: validatedData.fullName,
+            phone: validatedData.phone,
+            role: 'doctor',
+        }).returning();
 
-        res.status(201).json(newDoctor);
+        const [doctorProfile] = await db.insert(doctorProfiles).values({
+            userId: user.id,
+            specialization: validatedData.specialization,
+            licenseNumber: validatedData.licenseNumber,
+        }).returning();
+
+        res.status(201).json({
+            ...user,
+            doctorProfile
+        });
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return res.status(400).json({ 
+            res.status(400).json({ 
                 error: 'Validation error', 
                 details: error 
             });
+            return;
         }
         
         console.error('Error adding doctor:', error);
@@ -159,34 +219,58 @@ export async function addDoctor(req: Request, res: Response): Promise<any> {
  *   put:
  *     tags:
  *       - Doctors
- *     summary: Update doctor details
- *     description: Update an existing doctor's information
+ *     summary: Update doctor information
+ *     description: Update an existing doctor's personal and professional information
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *         description: Doctor ID
+ *           minimum: 1
+ *         description: The unique identifier of the doctor
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/DoctorInput'
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               fullName:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               phone:
+ *                 type: string
+ *                 maxLength: 20
+ *               specialization:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               licenseNumber:
+ *                 type: string
+ *                 minLength: 5
+ *                 maxLength: 50
  *     responses:
  *       200:
- *         description: Doctor updated successfully
+ *         description: Doctor information updated successfully
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Doctor'
  *       400:
  *         description: Invalid input or doctor ID
+ *       401:
+ *         description: Unauthorized - Authentication required
  *       404:
  *         description: Doctor not found
  *       500:
- *         description: Server error
+ *         description: Internal server error
  */
 export async function updateDoctor(req: Request, res: Response): Promise<any> {
     try {
@@ -194,30 +278,52 @@ export async function updateDoctor(req: Request, res: Response): Promise<any> {
         const doctorId = Number(id);
         
         if (isNaN(doctorId)) {
-            return res.status(400).json({ error: 'Invalid doctor ID' });
+            res.status(400).json({ error: 'Invalid doctor ID' });
+            return;
         }
 
         const validatedData = doctorSchema.partial().parse(req.body);
         
-        const [updatedDoctor] = await db.update(doctors)
+        // Update user data
+        const [updatedUser] = await db.update(users)
             .set({
-                ...validatedData,
+                email: validatedData.email,
+                fullName: validatedData.fullName,
+                phone: validatedData.phone,
                 updatedAt: new Date()
             })
-            .where(eq(doctors.id, doctorId))
+            .where(and(
+                eq(users.id, doctorId),
+                eq(users.role, 'doctor')
+            ))
             .returning();
 
-        if (!updatedDoctor) {
-            return res.status(404).json({ error: 'Doctor not found' });
+        if (!updatedUser) {
+            res.status(404).json({ error: 'Doctor not found' });
+            return;
         }
 
-        res.json(updatedDoctor);
+        // Update doctor profile
+        const [updatedProfile] = await db.update(doctorProfiles)
+            .set({
+                specialization: validatedData.specialization,
+                licenseNumber: validatedData.licenseNumber,
+                updatedAt: new Date()
+            })
+            .where(eq(doctorProfiles.userId, doctorId))
+            .returning();
+
+        res.json({
+            ...updatedUser,
+            doctorProfile: updatedProfile
+        });
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return res.status(400).json({ 
+            res.status(400).json({ 
                 error: 'Validation error', 
                 details: error 
             });
+            return;
         }
         
         console.error('Error updating doctor:', error);
@@ -265,34 +371,27 @@ export async function deactivateDoctor(req: Request, res: Response): Promise<any
         const doctorId = Number(id);
         
         if (isNaN(doctorId)) {
-            return res.status(400).json({ error: 'Invalid doctor ID' });
+            res.status(400).json({ error: 'Invalid doctor ID' });
+            return;
         }
 
-        // check if the doctor has any appointments
-        const existingAppointments = await db.query.appointments.findMany({
-            where: eq(appointments.doctorId, doctorId)
-        });
-
-        if (existingAppointments.length > 0) {
-            return res.status(400).json({ error: 'Doctor has appointments' });
-        }
-
-        // Soft delete by setting isActive to false
-        const [deletedDoctor] = await db.update(doctors)
+        // Update doctor profile to set isActive to false
+        const [updatedProfile] = await db.update(doctorProfiles)
             .set({ 
                 isActive: false,
                 updatedAt: new Date()
             })
-            .where(eq(doctors.id, doctorId))
+            .where(eq(doctorProfiles.userId, doctorId))
             .returning();
 
-        if (!deletedDoctor) {
-            return res.status(404).json({ error: 'Doctor not found' });
+        if (!updatedProfile) {
+            res.status(404).json({ error: 'Doctor not found' });
+            return;
         }
 
         res.json({ 
             message: 'Doctor deactivated successfully',
-            doctor: deletedDoctor
+            doctor: updatedProfile
         });
     } catch (error) {
         console.error('Error deactivating doctor:', error);
