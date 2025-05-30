@@ -232,7 +232,7 @@ export default function PatientsPage() {
                             <Calendar
                               mode="single"
                               selected={field.value ? new Date(field.value) : undefined}
-                              onSelect={(date) => field.onChange(date ? date.toISOString().split('T')[0] : '')}
+                              onSelect={(date: Date | undefined) => field.onChange(date ? date.toISOString().split('T')[0] : '')}
                               initialFocus
                             />
                           </PopoverContent>

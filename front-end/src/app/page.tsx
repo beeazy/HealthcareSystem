@@ -11,7 +11,7 @@ export default function Home() {
             alt="Healthcare Logo"
             width={96}
             height={96}
-            className="object-contain"
+            className="object-contain brightness-0"
             priority
           />
         </div>

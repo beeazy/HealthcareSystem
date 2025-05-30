@@ -17,7 +17,7 @@ export default function LoginPage() {
                   alt="Healthcare Logo"
                   width={60}
                   height={60}
-                  className="object-contain"
+                  className="object-contain brightness-0"
                   priority
                 />
               </div>

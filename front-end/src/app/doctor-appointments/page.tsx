@@ -192,7 +192,7 @@ export default function DoctorAppointmentsPage() {
                       <Calendar
                         mode="single"
                         selected={selectedDate ? new Date(selectedDate) : undefined}
-                        onSelect={(date) => setSelectedDate(date ? date.toISOString().split('T')[0] : '')}
+                        onSelect={(date: Date | undefined) => setSelectedDate(date ? date.toISOString().split('T')[0] : '')}
                         initialFocus
                       />
                     </PopoverContent>

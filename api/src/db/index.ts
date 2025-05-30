@@ -1,16 +1,18 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
+
 import * as schema from './schema';
 import { config } from 'dotenv';
 
 config();
 
+// Setup PostgreSQL connection pool
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-});
-
-export const db = drizzle(pool, { schema });
-
+    connectionString: process.env.DATABASE_URL, // from Supabase
+  });
+  
+  export const db = drizzle(pool);
+  
 // Test database connection
 pool.connect((err, client, release) => {
     if (err) {
