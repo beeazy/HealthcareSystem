@@ -206,7 +206,7 @@ export async function login(req: Request<{}, {}, LoginInput>, res: Response): Pr
         });
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({ message: error });
+        res.status(500).json({ message: 'Internal server error' });
     }
 }
 

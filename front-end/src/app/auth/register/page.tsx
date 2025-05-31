@@ -6,7 +6,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-background to-muted/20">
       <div className="container flex h-screen flex-col items-center justify-center">
-        <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
+        <div className="mx-auto flex w-full flex-col justify-center space-y-6 px-4 sm:w-[350px]">
           <div className="flex flex-col space-y-2 text-center">
             <div className="flex justify-center">
               <div className="rounded-full">
