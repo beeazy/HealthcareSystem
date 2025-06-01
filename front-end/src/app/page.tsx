@@ -22,7 +22,7 @@ export default function Home() {
             <div className="flex flex-col items-center space-y-6 text-center">
               <div className="space-y-2">
                 <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-                  Welcome to HealthCare System
+                  Welcome to AfyaOs
                 </h1>
                 <p className="mx-auto max-w-[700px] text-gray-500 md:text-xl dark:text-gray-400">
                   Streamline your healthcare operations with our modern, secure, and efficient management platform. Manage appointments, records, and more—all in one place.
