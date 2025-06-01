@@ -39,12 +39,12 @@ export default function Navigation() {
             {isAuthenticated ? (
               <Link href="/dashboard" className="flex items-center space-x-2">
                 <Stethoscope className="h-6 w-6 text-primary" />
-                <span className="text-xl font-bold text-gray-900">Healthcare System</span>
+                <span className="text-xl font-bold text-gray-900">AfyaOS</span>
               </Link>
             ) : (
               <Link href="/auth/login" className="flex items-center space-x-2">
                 <Stethoscope className="h-6 w-6 text-primary" />
-                <span className="text-xl font-bold text-gray-900">Healthcare System</span>
+                <span className="text-xl font-bold text-gray-900">AfyaOS</span>
               </Link>
             )}
           </div>

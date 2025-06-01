@@ -7,7 +7,7 @@ export default function TermsPage() {
         <h1 className="text-3xl md:text-4xl font-bold text-primary">Terms & Conditions</h1>
         <div className="text-muted-foreground text-left text-sm md:text-base space-y-4">
           <p>
-            By using the HealthCare System platform, you agree to our terms and conditions. Please read them carefully before using our services.
+            By using the AfyaOS platform, you agree to our terms and conditions. Please read them carefully before using our services.
           </p>
           <p>
             <strong>1. Use of Service:</strong> You agree to use the platform only for lawful purposes and in accordance with all applicable laws and regulations.
