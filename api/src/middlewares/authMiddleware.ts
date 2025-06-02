@@ -66,6 +66,12 @@ export const isActiveDoctor = (req: Request, res: Response, next: NextFunction) 
     }
     next();
 };
+export const isDoctorOrAdmin = (req: Request, res: Response, next: NextFunction) => {
+    if (!isAdmin(req, res, next) && !isActiveDoctor(req, res, next)) {
+        return res.status(403).json({ error: 'Doctor or Admin access required' });
+    }
+    next();
+};
 
 export const isPatient = (req: Request, res: Response, next: NextFunction) => {
     if (req.user?.role !== 'patient') {

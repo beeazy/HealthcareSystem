@@ -45,3 +45,9 @@ temp/
 
 # Drizzle
 drizzle/
+
+# data
+data/
+
+# 
+src/routes/auth/healthapi.code-workspace

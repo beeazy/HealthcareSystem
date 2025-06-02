@@ -9,7 +9,7 @@ import {
     getPatientAppointments,
     createMedicalRecord 
 } from "./patientsController";
-import { authenticate, isAdmin, isActiveDoctor } from "../../middlewares/authMiddleware";
+import { authenticate, isAdmin, isActiveDoctor, isDoctorOrAdmin } from "../../middlewares/authMiddleware";
 
 const router = Router();
 
@@ -17,25 +17,25 @@ const router = Router();
 router.use(authenticate as RequestHandler);
 
 // GET - Admins and active doctors can view patients
-router.get('/', isActiveDoctor as RequestHandler || isAdmin as RequestHandler, getPatients);
+router.get('/', isDoctorOrAdmin as RequestHandler, getPatients);
 
 // GET - Get single patient
-router.get('/:id', isActiveDoctor as RequestHandler || isAdmin as RequestHandler, getPatient);
+router.get('/:id', isDoctorOrAdmin as RequestHandler, getPatient);
 
 // GET - Get patient records
-router.get('/:id/records', isActiveDoctor as RequestHandler || isAdmin as RequestHandler, getPatientRecords);
+router.get('/:id/records', isDoctorOrAdmin as RequestHandler, getPatientRecords);
 
 // GET - Get patient appointments
-router.get('/:id/appointments', isActiveDoctor as RequestHandler || isAdmin as RequestHandler, getPatientAppointments);
+router.get('/:id/appointments', isDoctorOrAdmin as RequestHandler, getPatientAppointments);
 
 // POST - Create medical record
-router.post('/:id/records', isActiveDoctor as RequestHandler || isAdmin as RequestHandler, createMedicalRecord);
+router.post('/:id/records', isDoctorOrAdmin as RequestHandler, createMedicalRecord);
 
 // POST - Only active doctors can add patients
-router.post('/', isActiveDoctor as RequestHandler || isAdmin as RequestHandler, addPatient);
+router.post('/', isDoctorOrAdmin as RequestHandler, addPatient);
 
 // PUT - Only active doctors can update patients
-router.put('/:id', isActiveDoctor as RequestHandler || isAdmin as RequestHandler, updatePatient);
+router.put('/:id', isDoctorOrAdmin as RequestHandler, updatePatient);
 
 // DELETE - Only admins can delete patients
 router.delete('/:id', isAdmin as RequestHandler, deletePatient);
