@@ -11,6 +11,23 @@ import { z } from 'zod'
 import { addMinutes, isAfter, isBefore, parseISO } from 'date-fns'
 import { Loading } from "@/components/ui/loading"
 import Navigation from '@/components/Navigation'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { cn } from "@/lib/utils"
 
 interface Doctor {
     id: number
@@ -241,79 +258,75 @@ export default function MyAppointmentsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="space-y-8">
             <div className="flex justify-between items-center">
-              <h1 className="text-3xl font-bold text-gray-900">My Appointments</h1>
+              <h1 className="text-3xl font-bold text-foreground">My Appointments</h1>
             </div>
 
             {/* Book New Appointment Section */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-6 py-5 border-b border-gray-100">
-                <h2 className="text-xl font-semibold text-gray-900">Book New Appointment</h2>
+            <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
+              <div className="px-6 py-5 border-b border-border">
+                <h2 className="text-xl font-semibold text-card-foreground">Book New Appointment</h2>
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="doctor" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
                       Select Doctor
                     </label>
-                    <select
-                      id="doctor"
-                      value={selectedDoctor}
-                      onChange={(e) => setSelectedDoctor(e.target.value)}
-                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                    >
-                      <option value="">Select a doctor</option>
-                      {doctors.map((doctor) => (
-                        <option key={doctor.id} value={doctor.id}>
-                          {doctor.fullName} - {doctor.doctorProfile.specialization}
-                        </option>
-                      ))}
-                    </select>
+                    <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a doctor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {doctors.map((doctor) => (
+                          <SelectItem key={doctor.id} value={doctor.id.toString()}>
+                            {doctor.fullName} - {doctor.doctorProfile.specialization}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div>
-                    <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
                       Select Date
                     </label>
-                    <input
+                    <Input
                       type="date"
-                      id="date"
                       min={new Date().toISOString().split('T')[0]}
                       value={selectedDate}
                       onChange={(e) => handleDateSelect(e.target.value)}
-                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                     />
                   </div>
-                  <div className="sm:col-span-2">
-                    <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="sm:col-span-2 space-y-2">
+                    <label className="text-sm font-medium">
                       Notes (Optional)
                     </label>
-                    <textarea
-                      id="notes"
-                      rows={3}
-                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    <Textarea
                       placeholder="Add any additional notes for your appointment"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
+                      className="resize-none"
+                      rows={3}
                     />
                   </div>
                 </div>
 
                 {selectedDate && selectedDoctor && (
                   <div className="mt-6">
-                    <h3 className="text-sm font-medium text-gray-700 mb-3">Available Time Slots</h3>
+                    <h3 className="text-sm font-medium mb-3">Available Time Slots</h3>
                     <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
                       {availableSlots.map((slot) => (
-                        <button
+                        <Button
                           key={slot.time}
                           onClick={() => handleTimeSelect(slot.time)}
                           disabled={!slot.available || bookingLoading}
-                          className={`rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
-                            slot.available
-                              ? 'bg-indigo-600 text-white hover:bg-indigo-500 disabled:bg-indigo-300 disabled:cursor-not-allowed'
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          }`}
+                          variant={slot.available ? "default" : "outline"}
+                          className={cn(
+                            "w-full",
+                            !slot.available && "opacity-50 cursor-not-allowed"
+                          )}
                         >
                           {slot.time}
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   </div>
@@ -321,52 +334,50 @@ export default function MyAppointmentsPage() {
               </div>
             </div>
 
-            {/* Add confirmation dialog */}
-            {showConfirmDialog && (
-              <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
-                <div className="bg-white rounded-lg p-6 max-w-md w-full">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Confirm Appointment</h3>
-                  <div className="space-y-4">
-                    <p className="text-sm text-gray-500">
-                      You are booking an appointment for {selectedDate} at {selectedTime}
-                    </p>
-                    <div>
-                      <label htmlFor="confirm-notes" className="block text-sm font-medium text-gray-700 mb-1">
-                        Notes (Optional)
-                      </label>
-                      <textarea
-                        id="confirm-notes"
-                        rows={3}
-                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        placeholder="Add any additional notes for your appointment"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                      />
-                    </div>
-                    <div className="flex justify-end space-x-3">
-                      <button
-                        onClick={() => setShowConfirmDialog(false)}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleConfirmBooking}
-                        disabled={bookingLoading}
-                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 disabled:bg-indigo-300"
-                      >
-                        {bookingLoading ? 'Booking...' : 'Confirm Booking'}
-                      </button>
-                    </div>
+            {/* Confirmation Dialog */}
+            <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Confirm Appointment</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    You are booking an appointment for {selectedDate} at {selectedTime}
+                  </p>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Notes (Optional)
+                    </label>
+                    <Textarea
+                      placeholder="Add any additional notes for your appointment"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      className="resize-none"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowConfirmDialog(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleConfirmBooking}
+                      disabled={bookingLoading}
+                    >
+                      {bookingLoading ? 'Booking...' : 'Confirm Booking'}
+                    </Button>
                   </div>
                 </div>
-              </div>
-            )}
+              </DialogContent>
+            </Dialog>
 
-            {/* Existing Appointments Section */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-6 py-5 border-b border-gray-100">
-                <h2 className="text-xl font-semibold text-gray-900">Upcoming Appointments</h2>
+            {/* Upcoming Appointments Section */}
+            <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
+              <div className="px-6 py-5 border-b border-border">
+                <h2 className="text-xl font-semibold text-card-foreground">Upcoming Appointments</h2>
               </div>
               <div className="p-6">
                 <div className="space-y-4">
@@ -376,39 +387,40 @@ export default function MyAppointmentsPage() {
                     .map((appointment) => (
                       <div
                         key={appointment.id}
-                        className="flex items-center justify-between rounded-lg border border-gray-100 p-4 hover:border-indigo-100 transition-colors duration-200"
+                        className="flex items-center justify-between rounded-lg border border-border bg-card p-4 hover:border-primary/20 transition-colors duration-200"
                       >
                         <div className="space-y-1">
-                          <p className="font-medium text-gray-900">
+                          <p className="font-medium text-card-foreground">
                             {appointment.doctor?.fullName} - {appointment.doctor?.doctorProfile?.specialization}
                           </p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-muted-foreground">
                             {new Date(appointment.startTime).toLocaleString()}
                           </p>
                           {appointment.notes && (
-                            <p className="text-sm text-gray-500 italic">Notes: {appointment.notes}</p>
+                            <p className="text-sm text-muted-foreground italic">Notes: {appointment.notes}</p>
                           )}
                         </div>
-                        <button
+                        <Button
                           onClick={() => handleCancelAppointment(appointment.id)}
                           disabled={bookingLoading}
-                          className="rounded-lg bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:bg-red-50 disabled:text-red-300 transition-colors duration-200"
+                          variant="outline"
+                          className="text-destructive border-destructive/20 bg-destructive/10 hover:bg-destructive/20 hover:text-destructive"
                         >
                           Cancel
-                        </button>
+                        </Button>
                       </div>
                     ))}
                   {appointments.filter((apt) => apt.status === 'scheduled').length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-4">No upcoming appointments</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">No upcoming appointments</p>
                   )}
                 </div>
               </div>
             </div>
 
             {/* Past Appointments Section */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-6 py-5 border-b border-gray-100">
-                <h2 className="text-xl font-semibold text-gray-900">Past Appointments</h2>
+            <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
+              <div className="px-6 py-5 border-b border-border">
+                <h2 className="text-xl font-semibold text-card-foreground">Past Appointments</h2>
               </div>
               <div className="p-6">
                 <div className="space-y-4">
@@ -418,30 +430,30 @@ export default function MyAppointmentsPage() {
                     .map((appointment) => (
                       <div
                         key={appointment.id}
-                        className="rounded-lg border border-gray-100 p-4 hover:border-gray-200 transition-colors duration-200"
+                        className="rounded-lg border border-border bg-card p-4 hover:border-primary/20 transition-colors duration-200"
                       >
                         <div className="space-y-1">
-                          <p className="font-medium text-gray-900">
+                          <p className="font-medium text-card-foreground">
                             {appointment.doctor?.fullName} - {appointment.doctor?.doctorProfile?.specialization}
                           </p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-muted-foreground">
                             {new Date(appointment.startTime).toLocaleString()}
                           </p>
                           <p className="text-sm font-medium">
                             Status: <span className={`${
                               appointment.status === 'completed' ? 'text-green-600' :
-                              appointment.status === 'cancelled' ? 'text-red-600' :
+                              appointment.status === 'cancelled' ? 'text-destructive' :
                               'text-yellow-600'
                             }`}>{appointment.status}</span>
                           </p>
                           {appointment.notes && (
-                            <p className="text-sm text-gray-500 italic">Notes: {appointment.notes}</p>
+                            <p className="text-sm text-muted-foreground italic">Notes: {appointment.notes}</p>
                           )}
                         </div>
                       </div>
                     ))}
                   {appointments.filter((apt) => apt.status !== 'scheduled').length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-4">No past appointments</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">No past appointments</p>
                   )}
                 </div>
               </div>
