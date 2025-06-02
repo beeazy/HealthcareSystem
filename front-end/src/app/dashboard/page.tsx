@@ -181,26 +181,38 @@ export default function Dashboard() {
           )}
 
           {(isAdmin || isDoctor) && (
-            <div className="animate-fade-in-delay-2 rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
+            <div className="animate-fade-in-delay-2 rounded-xl bg-card p-6 shadow-md">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Appointments by Month</h3>
-                <Activity className="h-5 w-5 text-gray-400" />
+                <h3 className="text-lg font-semibold text-card-foreground">Appointments by Month</h3>
+                <Activity className="h-5 w-5 text-muted-foreground" />
               </div>
               <div className="mt-6">
                 <ChartContainer config={chartConfig} className="h-[300px]">
                   <BarChart accessibilityLayer data={chartData}>
-                    <CartesianGrid vertical={false} />
+                    <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.2} />
                     <XAxis
                       dataKey="month"
                       tickLine={false}
                       tickMargin={10}
                       axisLine={false}
+                      tick={{ fill: 'var(--muted-foreground)' }}
                     />
                     <ChartTooltip
                       cursor={false}
                       content={<ChartTooltipContent hideLabel />}
+                      contentStyle={{
+                        background: 'var(--popover)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius)',
+                        color: 'var(--popover-foreground)'
+                      }}
                     />
-                    <Bar dataKey="appointments" fill="var(--color-appointments)" radius={8} />
+                    <Bar 
+                      dataKey="appointments" 
+                      fill="var(--primary)" 
+                      radius={8}
+                      activeBar={{ fill: 'var(--accent)' }}
+                    />
                   </BarChart>
                 </ChartContainer>
               </div>
