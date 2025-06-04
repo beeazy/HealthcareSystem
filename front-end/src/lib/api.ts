@@ -8,7 +8,13 @@ const api = {
     if (!token) throw new Error("Not authenticated")
     return fetch(`${API_URL}${endpoint}`, {
       headers: { Authorization: `Bearer ${token}` }
-    }).then(res => res.json())
+    }).then(async res => {
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || data.message || 'Request failed')
+      }
+      return data
+    })
   },
   post: <T>(endpoint: string, data: any): Promise<T> => {
     const token = authApi.getToken()

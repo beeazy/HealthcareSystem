@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../db';
-import { users, userRoleEnum, doctorProfiles } from '../db/schema';
+import { users, userRoleEnum, doctorProfiles, receptionistProfiles } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
 type UserRole = typeof userRoleEnum.enumValues[number];
@@ -67,8 +67,9 @@ export const isActiveDoctor = (req: Request, res: Response, next: NextFunction) 
     next();
 };
 export const isDoctorOrAdmin = (req: Request, res: Response, next: NextFunction) => {
-    if (!isAdmin(req, res, next) && !isActiveDoctor(req, res, next)) {
-        return res.status(403).json({ error: 'Doctor or Admin access required' });
+    if ((req.user?.role === 'doctor' && !doctorProfiles.isActive) || 
+        (req.user?.role !== 'doctor' && req.user?.role !== 'admin')) {
+        return res.status(403).json({ message: 'Active doctor or admin access required' });
     }
     next();
 };
@@ -78,7 +79,7 @@ export const isPatient = (req: Request, res: Response, next: NextFunction) => {
         return res.status(403).json({ error: 'Patient access required' });
     }
     next();
-}; 
+};
 
 export const isRequestingAuthorizedData = (req: Request, res: Response, next: NextFunction) => {
     if (Number(req.params.id) !== req.user?.userId) {
@@ -87,3 +88,11 @@ export const isRequestingAuthorizedData = (req: Request, res: Response, next: Ne
     next();
 };
 
+
+
+export const isActiveReceptionist = (req: Request, res: Response, next: NextFunction) => {
+    if (req.user?.role !== 'receptionist' || !receptionistProfiles.isActive) {
+        return res.status(403).json({ message: 'Active receptionist access required' });
+    }
+    next();
+};

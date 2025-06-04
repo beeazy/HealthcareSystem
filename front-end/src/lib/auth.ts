@@ -6,7 +6,7 @@ import { AuthError } from '@/components/AuthError'
 import { create } from 'zustand'
 import { User } from './types'
 
-export type UserRole = 'admin' | 'doctor' | 'patient'
+export type UserRole = 'admin' | 'doctor' | 'patient' | 'receptionist'
 
 interface AuthState {
   user: User | null
