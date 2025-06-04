@@ -18,11 +18,12 @@ const port = process.env.PORT || 8000;
 const app = express();
 
 app.use(cors({
-  origin: [/^https:\/\/.*$/, "http://localhost:3001"],
+  origin: true,
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
 app.use(express.json());
 
 // API Documentation
