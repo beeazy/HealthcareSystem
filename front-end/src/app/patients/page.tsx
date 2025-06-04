@@ -43,10 +43,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { ProtectedRoute } from "@/components/ProtectedRoute"
 
-export default function PatientsPage() {
+function PatientsPageContent() {
   const [patients, setPatients] = useState<Patient[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null)
   const user = authApi.getUser()
@@ -71,10 +73,16 @@ export default function PatientsPage() {
 
   async function loadPatients() {
     try {
+      setError(null)
       const data = await patientsApi.getPatients()
       setPatients(data)
     } catch (error) {
-      toast.error("Failed to load patients")
+      const message = error instanceof Error ? error.message : 'Failed to load patients'
+      setError(message)
+      setPatients([])
+      toast.error(message)
+      // redirect to login page
+      window.location.href = "/dashboard"
     } finally {
       setIsLoading(false)
     }
@@ -340,5 +348,13 @@ export default function PatientsPage() {
         </Table>
       </div>
     </div>
+  )
+}
+
+export default function PatientsPage() {
+  return (
+    <ProtectedRoute allowedRoles={['admin', 'doctor', 'receptionist']}>
+      <PatientsPageContent />
+    </ProtectedRoute>
   )
 } 

@@ -2,7 +2,7 @@ import { pgTable, serial, varchar, timestamp, integer, boolean, text, pgEnum } f
 import { relations } from 'drizzle-orm';
 
 // Enums for better type safety
-export const userRoleEnum = pgEnum('user_role', ['patient', 'doctor', 'admin']);
+export const userRoleEnum = pgEnum('user_role', ['patient', 'doctor', 'admin', 'receptionist']);
 export const appointmentStatusEnum = pgEnum('appointment_status', ['scheduled', 'completed', 'cancelled', 'no_show']);
 
 // Users table - single source of truth for all user types
@@ -28,6 +28,16 @@ export const doctorProfiles = pgTable('doctor_profiles', {
     isActive: boolean('is_active').default(true),
 });
 
+// Receptionist profiles - additional info for users with receptionist role
+export const receptionistProfiles = pgTable('receptionist_profiles', {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id').references(() => users.id).notNull().unique(),
+    department: varchar('department', { length: 100 }).notNull(),
+    isActive: boolean('is_active').default(true),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Define relations
 export const usersRelations = relations(users, ({ one }) => ({
     doctorProfile: one(doctorProfiles, {
@@ -38,11 +48,22 @@ export const usersRelations = relations(users, ({ one }) => ({
         fields: [users.id],
         references: [patientProfiles.userId],
     }),
+    receptionistProfile: one(receptionistProfiles, {
+        fields: [users.id],
+        references: [receptionistProfiles.userId],
+    }),
 }));
 
 export const doctorProfilesRelations = relations(doctorProfiles, ({ one }) => ({
     user: one(users, {
         fields: [doctorProfiles.userId],
+        references: [users.id],
+    }),
+}));
+
+export const receptionistProfilesRelations = relations(receptionistProfiles, ({ one }) => ({
+    user: one(users, {
+        fields: [receptionistProfiles.userId],
         references: [users.id],
     }),
 }));
