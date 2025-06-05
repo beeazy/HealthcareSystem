@@ -128,7 +128,7 @@ interface AuthResponse {
     id: number
     email: string
     fullName: string
-    role: 'admin' | 'doctor' | 'patient'
+    role: 'admin' | 'doctor' | 'patient' | 'receptionist'
     phone?: string
   }
 }
@@ -323,7 +323,11 @@ export const patientsApi = {
   getPatientRecords: (id: string) => api.get<PatientRecord[]>(`/patients/${id}/records`),
   addPatient: (data: PatientInput) => api.post<Patient>('/patients', data),
   updatePatient: (id: number, data: Partial<PatientInput>) => api.put<Patient>(`/patients/${id}`, data),
-  deletePatient: (id: number) => api.delete<void>(`/patients/${id}`)
+  deletePatient: (id: number) => api.delete<void>(`/patients/${id}`),
+  searchPatients: async (query: string): Promise<Patient[]> => {
+    const response = await api.post<Patient[]>('/patients/search', { searchTerm: query });
+    return response;
+  },
 }
 
 const getAuthHeaders = () => {

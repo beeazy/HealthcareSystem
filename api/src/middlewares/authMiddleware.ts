@@ -66,11 +66,49 @@ export const isActiveDoctor = (req: Request, res: Response, next: NextFunction) 
     }
     next();
 };
-export const isDoctorOrAdmin = (req: Request, res: Response, next: NextFunction) => {
-    if ((req.user?.role === 'doctor' && !doctorProfiles.isActive) || 
-        (req.user?.role !== 'doctor' && req.user?.role !== 'admin')) {
-        return res.status(403).json({ message: 'Active doctor or admin access required' });
+
+const ALLOWED_PATIENT_MANAGEMENT_ROLES = ['doctor', 'admin', 'receptionist'] as const;
+type AllowedRole = typeof ALLOWED_PATIENT_MANAGEMENT_ROLES[number];
+
+interface ProfileStatus {
+    role: AllowedRole;
+    isActive: boolean;
+}
+
+const checkProfileStatus = async (role: AllowedRole): Promise<ProfileStatus> => {
+    switch (role) {
+        case 'doctor':
+            return { role, isActive: Boolean(doctorProfiles.isActive) };
+        case 'receptionist':
+            return { role, isActive: Boolean(receptionistProfiles.isActive) };
+        case 'admin':
+            return { role, isActive: true };
+        default:
+            return { role, isActive: false };
     }
+};
+
+export const isDoctorOrAdmin = async (req: Request, res: Response, next: NextFunction) => {
+    const userRole = req.user?.role as AllowedRole;
+
+    if (!userRole || !ALLOWED_PATIENT_MANAGEMENT_ROLES.includes(userRole)) {
+        return res.status(403).json({ 
+            status: 'error',
+            code: 'INSUFFICIENT_PERMISSIONS',
+            message: 'Access denied: insufficient permissions' 
+        });
+    }
+
+    const { isActive } = await checkProfileStatus(userRole);
+    
+    if (!isActive) {
+        return res.status(403).json({ 
+            status: 'error',
+            code: 'INACTIVE_PROFILE',
+            message: `Access denied: inactive ${userRole} profile` 
+        });
+    }
+
     next();
 };
 
@@ -87,8 +125,6 @@ export const isRequestingAuthorizedData = (req: Request, res: Response, next: Ne
     }
     next();
 };
-
-
 
 export const isActiveReceptionist = (req: Request, res: Response, next: NextFunction) => {
     if (req.user?.role !== 'receptionist' || !receptionistProfiles.isActive) {
