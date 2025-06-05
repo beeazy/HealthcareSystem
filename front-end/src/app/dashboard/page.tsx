@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth"
 import { statsApi } from "@/lib/api"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { Layout } from "@/components/Layout"
-import { Users, Stethoscope, Calendar, UserCheck, Activity } from "lucide-react"
+import { Users, Stethoscope, Calendar, UserCheck, Activity, ClipboardList, PhoneCall, UserPlus } from "lucide-react"
 import { Loading } from "@/components/ui/loading"
 import { useRouter } from "next/navigation"
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
@@ -28,24 +28,26 @@ interface Stats {
   }
 }
 
+type UserRole = 'admin' | 'doctor' | 'patient' | 'receptionist';
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-const StatCard = ({ title, value, icon: Icon, color }: { title: string; value: number; icon: any; color: string }) => (
-  <div className="animate-fade-in rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-100 transition-all hover:shadow-md">
-    <div className="flex items-center justify-between">
+const StatCard = ({ title, value, icon: Icon }: { title: string; value: number; icon: React.ElementType }) => (
+  <div className="animate-fade-in rounded-md bg-card ring-1 ring-border p-4 sm:p-6">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
-        <p className="text-sm font-medium text-gray-600">{title}</p>
-        <p className="mt-2 text-3xl font-bold text-gray-900">{value}</p>
+        <p className="text-xs sm:text-sm font-medium text-muted-foreground">{title}</p>
+        <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-card-foreground">{value}</p>
       </div>
-      <div className={`rounded-full p-3 bg-primary`}>
-        <Icon className="h-6 w-6 text-white" />
+      <div className="rounded-md bg-primary/5 p-2 sm:p-3">
+        <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
       </div>
     </div>
   </div>
 )
 
 export default function Dashboard() {
-  const { user, isAdmin, isDoctor, isPatient } = useAuth()
+  const { user, isAdmin, isDoctor, isPatient, isReceptionist } = useAuth()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -118,59 +120,135 @@ export default function Dashboard() {
   }
 
   return (
-    <ProtectedRoute allowedRoles={['admin', 'doctor', 'patient']}>
+    <ProtectedRoute allowedRoles={['admin', 'doctor', 'patient', 'receptionist']}>
       <Layout>
-        <div className="space-y-8">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-sm text-gray-600">Welcome back, {user?.fullName}</p>
+        <div className="space-y-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h1 className="scroll-m-20 text-xl sm:text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground leading-7">Welcome back, {user?.fullName}</p>
           </div>
           
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {isAdmin && (
               <>
                 <StatCard
                   title="Total Patients"
                   value={stats?.totalPatients || 0}
                   icon={Users}
-                  color="bg-blue-500"
                 />
                 <StatCard
                   title="Total Doctors"
                   value={stats?.totalDoctors || 0}
                   icon={Stethoscope}
-                  color="bg-green-500"
                 />
               </>
             )}
-            {(isAdmin || isDoctor) && (
+            {(isAdmin || isDoctor || isReceptionist) && (
               <StatCard
                 title="Today's Appointments"
                 value={stats?.appointmentsToday || 0}
                 icon={Calendar}
-                color="bg-purple-500"
               />
             )}
-            {isAdmin && (
+            {(isAdmin || isReceptionist) && (
               <StatCard
                 title="Available Doctors"
                 value={stats?.availableDoctors || 0}
                 icon={UserCheck}
-                color="bg-indigo-500"
               />
             )}
           </div>
 
+          {isReceptionist && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Quick Actions Card */}
+              <div className="rounded-md bg-card ring-1 ring-border p-6">
+                <h3 className="scroll-m-20 text-lg font-semibold tracking-tight text-card-foreground mb-4">Quick Actions</h3>
+                <div className="p-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <button 
+                      onClick={() => router.push('/appointments')}
+                      className="group relative flex flex-col items-center justify-center gap-3 rounded-xl bg-card p-6 ring-1 ring-border hover:ring-primary hover:shadow-sm transition-all duration-200"
+                    >
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-primary/5 to-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="relative">
+                        <Calendar className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
+                      </div>
+                      <span className="relative text-sm font-medium text-foreground group-hover:text-primary transition-colors">Book Appointment</span>
+                    </button>
+                    <button 
+                      onClick={() => router.push('/patients')}
+                      className="group relative flex flex-col items-center justify-center gap-3 rounded-xl bg-card p-6 ring-1 ring-border hover:ring-primary hover:shadow-sm transition-all duration-200"
+                    >
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-secondary/5 to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="relative">
+                        <UserPlus className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
+                      </div>
+                      <span className="relative text-sm font-medium text-foreground group-hover:text-primary transition-colors">New Patient</span>
+                    </button>
+                    <button 
+                      onClick={() => router.push('/appointments')}
+                      className="group relative flex flex-col items-center justify-center gap-3 rounded-xl bg-card p-6 ring-1 ring-border hover:ring-primary hover:shadow-sm transition-all duration-200"
+                    >
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-accent/5 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="relative">
+                        <ClipboardList className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
+                      </div>
+                      <span className="relative text-sm font-medium text-foreground group-hover:text-primary transition-colors">View Schedule</span>
+                    </button>
+                    <button 
+                      onClick={() => router.push('/patients')}
+                      className="group relative flex flex-col items-center justify-center gap-3 rounded-xl bg-card p-6 ring-1 ring-border hover:ring-primary hover:shadow-sm transition-all duration-200"
+                    >
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-muted/20 to-muted/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="relative">
+                        <Users className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
+                      </div>
+                      <span className="relative text-sm font-medium text-foreground group-hover:text-primary transition-colors">Manage Patients</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Today's Tasks Card */}
+              <div className="rounded-md bg-card ring-1 ring-border p-6">
+                <h3 className="scroll-m-20 text-lg font-semibold tracking-tight text-card-foreground mb-4">Today's Tasks</h3>
+                <div className="space-y-4">
+                  <div className="group flex items-center justify-between rounded-md bg-background p-3 text-sm ring-1 ring-border hover:bg-accent/5 hover:text-accent-foreground transition-colors">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-5 w-5 text-primary group-hover:text-accent-foreground" />
+                      <div>
+                        <p className="font-medium leading-none">Confirm Tomorrow's Appointments</p>
+                        <p className="text-xs text-muted-foreground pt-1">Call patients to confirm their visits</p>
+                      </div>
+                    </div>
+                    <PhoneCall className="h-5 w-5 text-muted-foreground group-hover:text-accent-foreground" />
+                  </div>
+                  <div className="group flex items-center justify-between rounded-md bg-background p-3 text-sm ring-1 ring-border hover:bg-accent/5 hover:text-accent-foreground transition-colors">
+                    <div className="flex items-center gap-3">
+                      <ClipboardList className="h-5 w-5 text-primary group-hover:text-accent-foreground" />
+                      <div>
+                        <p className="font-medium leading-none">Update Patient Records</p>
+                        <p className="text-xs text-muted-foreground pt-1">Verify insurance information</p>
+                      </div>
+                    </div>
+                    <UserCheck className="h-5 w-5 text-muted-foreground group-hover:text-accent-foreground" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {isAdmin && (
-            <div className="animate-fade-in-delay rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">Top Specializations</h3>
+            <div className="rounded-md bg-card ring-1 ring-border p-6">
+              <h3 className="scroll-m-20 text-lg font-semibold tracking-tight text-card-foreground">Top Specializations</h3>
               <div className="mt-4 space-y-3">
                 {stats?.topSpecializations.map((spec, index) => (
                   <div key={index} className="flex items-center justify-between">
-                    <span className="text-gray-600">{spec}</span>
-                    <div className="h-2 w-24 rounded-full bg-gray-100">
+                    <span className="text-sm text-muted-foreground leading-none">{spec}</span>
+                    <div className="h-2 w-24 rounded-full bg-secondary/10">
                       <div
-                        className="h-2 rounded-full bg-primary transition-all duration-500"
+                        className="h-2 rounded-full bg-primary/90 transition-all duration-500 ease-in-out"
                         style={{ width: `${100 - index * 15}%` }}
                       />
                     </div>
@@ -180,7 +258,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          {(isAdmin || isDoctor) && (
+          {(isAdmin || isDoctor || isReceptionist) && (
             <div className="animate-fade-in-delay-2 rounded-xl bg-card p-6 shadow-md">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-card-foreground">Appointments by Month</h3>
@@ -220,15 +298,15 @@ export default function Dashboard() {
           )}
 
           {isPatient && (
-            <div className="animate-fade-in-delay rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">Welcome, {user?.fullName}</h3>
-              <p className="mt-2 text-gray-600">
+            <div className="rounded-md bg-card p-6 shadow-sm ring-1 ring-border">
+              <h3 className="scroll-m-20 text-lg font-semibold tracking-tight text-card-foreground">Welcome, {user?.fullName}</h3>
+              <p className="text-sm text-muted-foreground leading-7 [&:not(:first-child)]:mt-2">
                 You can manage your appointments and view your medical records from here.
               </p>
               <div className="mt-4">
                 <button 
                   onClick={() => router.push('/my-appointments')}
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
+                  className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
                 >
                   Schedule Appointment
                 </button>

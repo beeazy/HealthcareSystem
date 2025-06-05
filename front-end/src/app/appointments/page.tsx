@@ -39,8 +39,8 @@ import {
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format, parseISO, isBefore, isAfter, addMinutes } from "date-fns";
-import { Pencil, Plus, Check, X } from "lucide-react";
+import { format, parseISO, isBefore, isAfter, addMinutes, parse } from "date-fns";
+import { Pencil, Plus, Check, X, Search } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -60,6 +60,8 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import Navigation from "@/components/Navigation";
+import { useAuth } from "@/lib/auth";
+import { useDebounce } from "@/lib/hooks";
 
 // Define the appointment form schema
 const appointmentFormSchema = z.object({
@@ -72,7 +74,89 @@ const appointmentFormSchema = z.object({
 
 type AppointmentFormValues = z.infer<typeof appointmentFormSchema>;
 
+interface PatientSearchProps {
+  onSelect: (patient: Patient) => void;
+}
+
+function PatientSearch({ onSelect }: PatientSearchProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Patient[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
+  useEffect(() => {
+    async function searchPatients() {
+      if (!debouncedSearch || debouncedSearch.length < 3) {
+        setSearchResults([]);
+        return;
+      }
+
+      try {
+        setIsSearching(true);
+        const results = await patientsApi.searchPatients(debouncedSearch);
+        setSearchResults(results);
+      } catch (error) {
+        console.error('Error searching patients:', error);
+        toast.error('Failed to search patients');
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }
+
+    searchPatients();
+  }, [debouncedSearch]);
+
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by phone, email, or insurance number (min. 3 characters)"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-8"
+        />
+      </div>
+      {isSearching && (
+        <div className="text-sm text-muted-foreground">Searching...</div>
+      )}
+      {searchQuery.length > 0 && searchQuery.length < 3 && (
+        <div className="text-sm text-muted-foreground">
+          Please enter at least 3 characters to search
+        </div>
+      )}
+      {searchQuery.length >= 3 && searchResults.length === 0 && !isSearching && (
+        <div className="text-sm text-muted-foreground">
+          No patients found
+        </div>
+      )}
+      {searchResults.length > 0 && (
+        <div className="border rounded-md divide-y">
+          {searchResults.map((patient) => (
+            <button
+              key={patient.id}
+              onClick={() => {
+                onSelect(patient);
+                setSearchQuery("");
+                setSearchResults([]);
+              }}
+              className="w-full px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground flex flex-col gap-1"
+            >
+              <span className="font-medium">{patient.fullName}</span>
+              <span className="text-sm text-muted-foreground">
+                {patient.email} • {patient.phone}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AppointmentsPage() {
+  const { isAdmin, isDoctor, isReceptionist } = useAuth();
   const router = useRouter();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -81,10 +165,9 @@ export default function AppointmentsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] =
     useState<Appointment | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
+  const [selectedDate, setSelectedDate] = useState<Date>(
+    new Date(new Date().setHours(0, 0, 0, 0))
   );
 
   const form = useForm<AppointmentFormValues>({
@@ -99,21 +182,14 @@ export default function AppointmentsPage() {
   });
 
   useEffect(() => {
-    const token = authApi.getToken();
-    if (!token) {
-      router.push("/auth/login");
-      return;
-    }
-
-    if (!authApi.isAdmin()) {
+    if (!isAdmin && !isReceptionist) {
       toast.error("You don't have permission to access this page");
       router.push("/dashboard");
       return;
     }
 
-    setIsAdmin(true);
     loadData();
-  }, [router]);
+  }, [isAdmin, isDoctor, isReceptionist, router]);
 
   async function loadData() {
     try {
@@ -126,19 +202,8 @@ export default function AppointmentsPage() {
       );
       setPatients(patientsData);
 
-      if (selectedDoctor) {
-        const appointmentsData = await appointmentsApi.getDoctorAppointments();
-        console.log("Doctor appointments:", appointmentsData); // Debug log
-        setAppointments(
-          appointmentsData.filter(
-            (app: Appointment) => app.doctorId === selectedDoctor.id
-          )
-        );
-      } else {
-        const appointmentsData = await appointmentsApi.getPatientAppointments();
-        console.log("Patient appointments:", appointmentsData); // Debug log
+      const appointmentsData = await appointmentsApi.getAppointments();
         setAppointments(appointmentsData);
-      }
     } catch (error) {
       console.error("Error loading data:", error); // Debug log
       toast.error("Failed to load data");
@@ -326,21 +391,22 @@ export default function AppointmentsPage() {
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {selectedDate
-                          ? format(new Date(selectedDate), "PPP")
-                          : "Pick a date"}
+                        {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={
-                          selectedDate ? new Date(selectedDate) : undefined
-                        }
-                        onSelect={(date: Date | undefined) =>
-                          setSelectedDate(
-                            date ? date.toISOString().split("T")[0] : ""
-                          )
+                        selected={selectedDate}
+                        onSelect={(date) => {
+                          if (date) {
+                            const newDate = new Date(date);
+                            newDate.setHours(0, 0, 0, 0);
+                            setSelectedDate(newDate);
+                          }
+                        }}
+                        disabled={(date) => 
+                          date < new Date(new Date().setHours(0, 0, 0, 0))
                         }
                         initialFocus
                       />
@@ -348,7 +414,7 @@ export default function AppointmentsPage() {
                   </Popover>
                 </div>
               </div>
-              {isAdmin && (
+              {(isAdmin || isReceptionist) && (
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
                     <Button
@@ -362,7 +428,7 @@ export default function AppointmentsPage() {
                       Schedule Appointment
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
                       <DialogTitle>
                         {editingAppointment
@@ -381,28 +447,17 @@ export default function AppointmentsPage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Patient</FormLabel>
-                              <Select
-                                onValueChange={(value) =>
-                                  field.onChange(Number(value))
-                                }
-                                defaultValue={field.value?.toString()}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select a patient" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {patients.map((patient) => (
-                                    <SelectItem
-                                      key={patient.id}
-                                      value={patient.id.toString()}
-                                    >
-                                      {patient.fullName}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <PatientSearch
+                                onSelect={(patient) => {
+                                  field.onChange(patient.id);
+                                  form.setValue("patientId", patient.id);
+                                }}
+                              />
+                              {field.value > 0 && (
+                                <div className="text-sm text-muted-foreground">
+                                  Selected patient: {patients.find(p => p.id === field.value)?.fullName}
+                                </div>
+                              )}
                               <FormMessage />
                             </FormItem>
                           )}
@@ -443,16 +498,83 @@ export default function AppointmentsPage() {
                           control={form.control}
                           name="startTime"
                           render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="flex flex-col">
                               <FormLabel>Date & Time</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="datetime-local"
-                                  {...field}
-                                  min={new Date().toISOString().slice(0, 16)}
-                                  step="1800" // 30 minutes in seconds
-                                />
-                              </FormControl>
+                              <div className="flex flex-col gap-2">
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <FormControl>
+                                      <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                          "w-full pl-3 text-left font-normal",
+                                          !field.value && "text-muted-foreground"
+                                        )}
+                                      >
+                                        {field.value ? (
+                                          format(new Date(field.value), "PPP")
+                                        ) : (
+                                          <span>Pick a date</span>
+                                        )}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                      </Button>
+                                    </FormControl>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                      mode="single"
+                                      selected={field.value ? new Date(field.value) : undefined}
+                                      onSelect={(date) => {
+                                        if (date) {
+                                          const currentValue = field.value ? new Date(field.value) : new Date();
+                                          const newDate = new Date(date);
+                                          newDate.setHours(currentValue.getHours());
+                                          newDate.setMinutes(currentValue.getMinutes());
+                                          field.onChange(newDate.toISOString());
+                                        }
+                                      }}
+                                      disabled={(date) => 
+                                        date < new Date(new Date().setHours(0, 0, 0, 0))
+                                      }
+                                      initialFocus
+                                    />
+                                  </PopoverContent>
+                                </Popover>
+                                <Select
+                                  onValueChange={(time) => {
+                                    const [hours, minutes] = time.split(':');
+                                    const newDate = field.value ? new Date(field.value) : new Date();
+                                    newDate.setHours(parseInt(hours));
+                                    newDate.setMinutes(parseInt(minutes));
+                                    field.onChange(newDate.toISOString());
+                                  }}
+                                  defaultValue={field.value ? 
+                                    format(new Date(field.value), 'HH:mm') : 
+                                    '09:00'
+                                  }
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select time" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {Array.from({ length: 18 }, (_, i) => i + 9).map((hour) => (
+                                      [0, 30].map((minute) => {
+                                        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                                        const date = new Date();
+                                        date.setHours(hour);
+                                        date.setMinutes(minute);
+                                        return (
+                                          <SelectItem key={time} value={time}>
+                                            {format(date, 'h:mm a')}
+                                          </SelectItem>
+                                        );
+                                      })
+                                    )).flat()}
+                                  </SelectContent>
+                                </Select>
+                              </div>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -540,85 +662,90 @@ export default function AppointmentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {appointments.map((appointment) => (
-                  <TableRow key={appointment.id}>
-                    <TableCell className="font-medium">
-                      {appointment.patient?.fullName}
-                    </TableCell>
-                    <TableCell>
-                      {appointment.doctor ? (
-                        <div className="flex flex-col xs:flex-row xs:items-center gap-1">
-                          <span>{appointment.doctor.fullName}</span>
-                          <span className="text-muted-foreground text-sm">
-                            {appointment.doctor.doctorProfile.specialization}
-                          </span>
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {format(
-                        new Date(appointment.startTime),
-                        "MMM d, yyyy h:mm a"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-flex px-2 py-1 rounded-full text-xs font-medium
-                    ${
-                      appointment.status === "scheduled"
-                        ? "bg-blue-100 text-blue-800"
-                        : appointment.status === "completed"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                      >
-                        {appointment.status.charAt(0).toUpperCase() +
-                          appointment.status.slice(1)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="max-w-[200px] truncate">
-                      {appointment.notes || "-"}
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell className="text-right space-x-1 md:space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(appointment)}
-                          className="h-8 w-8"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        {appointment.status === "scheduled" && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                handleStatusChange(appointment.id, "completed")
-                              }
-                              className="h-8 w-8"
-                            >
-                              <Check className="h-4 w-4 text-green-600" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                handleStatusChange(appointment.id, "cancelled")
-                              }
-                              className="h-8 w-8"
-                            >
-                              <X className="h-4 w-4 text-red-600" />
-                            </Button>
-                          </>
+                {appointments.map((appointment) => {
+                  const patient = patients.find(p => p.id === appointment.patientId);
+                  const doctor = doctors.find(d => d.id === appointment.doctorId);
+                  
+                  return (
+                    <TableRow key={appointment.id}>
+                      <TableCell className="font-medium">
+                        {patient?.fullName || `Patient ID: ${appointment.patientId}`}
+                      </TableCell>
+                      <TableCell>
+                        {doctor ? (
+                          <div className="flex flex-col xs:flex-row xs:items-center gap-1">
+                            <span>{doctor.fullName}</span>
+                            <span className="text-muted-foreground text-sm">
+                              {doctor.doctorProfile.specialization}
+                            </span>
+                          </div>
+                        ) : (
+                          `Doctor ID: ${appointment.doctorId}`
                         )}
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))}
+                      <TableCell>
+                        {format(
+                          new Date(appointment.startTime),
+                          "MMM d, yyyy h:mm a"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex px-2 py-1 rounded-full text-xs font-medium
+                        ${
+                          appointment.status === "scheduled"
+                            ? "bg-blue-100 text-blue-800"
+                            : appointment.status === "completed"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                        >
+                          {appointment.status.charAt(0).toUpperCase() +
+                            appointment.status.slice(1)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate">
+                        {appointment.notes || "-"}
+                      </TableCell>
+                      {(isAdmin || isReceptionist) && (
+                        <TableCell className="text-right space-x-1 md:space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(appointment)}
+                            className="h-8 w-8"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          {appointment.status === "scheduled" && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                  handleStatusChange(appointment.id, "completed")
+                                }
+                                className="h-8 w-8"
+                              >
+                                <Check className="h-4 w-4 text-green-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                  handleStatusChange(appointment.id, "cancelled")
+                                }
+                                className="h-8 w-8"
+                              >
+                                <X className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

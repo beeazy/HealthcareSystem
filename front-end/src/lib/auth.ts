@@ -14,6 +14,7 @@ interface AuthState {
   isAdmin: boolean
   isDoctor: boolean
   isPatient: boolean
+  isReceptionist: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => void
   canAccess: (roles: string[]) => boolean
@@ -30,7 +31,7 @@ export const useAuth = create<AuthState>((set: AuthStore['set'], get: AuthStore[
   isAdmin: false,
   isDoctor: false,
   isPatient: false,
-
+  isReceptionist: false,
   login: async (email: string, password: string) => {
     try {
       const response = await authApi.login({ email, password })
@@ -40,6 +41,7 @@ export const useAuth = create<AuthState>((set: AuthStore['set'], get: AuthStore[
         isAdmin: response.user.role === 'admin',
         isDoctor: response.user.role === 'doctor',
         isPatient: response.user.role === 'patient',
+        isReceptionist: response.user.role === 'receptionist',
       })
     } catch (error) {
       throw error
@@ -54,6 +56,7 @@ export const useAuth = create<AuthState>((set: AuthStore['set'], get: AuthStore[
       isAdmin: false,
       isDoctor: false,
       isPatient: false,
+      isReceptionist: false,
     })
   },
 
@@ -73,6 +76,7 @@ if (typeof window !== 'undefined') {
       isAdmin: user.role === 'admin',
       isDoctor: user.role === 'doctor',
       isPatient: user.role === 'patient',
+      isReceptionist: user.role === 'receptionist',
     })
   }
 }

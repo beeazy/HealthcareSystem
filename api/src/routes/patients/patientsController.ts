@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../../db';
 import { users, patientProfiles, medicalRecords, appointments } from '../../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or } from 'drizzle-orm';
 import { z } from 'zod/v4';
 import bcrypt from 'bcrypt';
 
@@ -136,7 +136,23 @@ export async function getPatients(req: Request, res: Response): Promise<any> {
 export async function addPatient(req: Request, res: Response): Promise<any> {
     try {
         const validatedData = patientSchema.parse(req.body);
-        
+
+        const [existingUser, existingPhone] = await Promise.all([
+            db.query.users.findFirst({
+                where: eq(users.email, validatedData.email)
+            }),
+            db.query.users.findFirst({
+                where: eq(users.phone, validatedData.phone || '')
+            })
+        ]);
+
+        if (existingUser || existingPhone) {
+            return res.status(400).json({ error: 'User already exists' });
+        }
+
+        if (!validatedData.password) {
+            validatedData.password = validatedData.email;
+        }
         // Hash the password
         const hashedPassword = await bcrypt.hash(validatedData.password, 10);
         
@@ -718,4 +734,62 @@ export async function createMedicalRecord(req: Request, res: Response): Promise<
         res.status(500).json({ error: 'Failed to create medical record' });
     }
 }
+
+// search for patients using phone number or email or insurance number
+
+/**
+ * @swagger
+ * /patients/search:
+ *   get:
+ *     tags:
+ *       - Patients
+ *     summary: Search for patients
+ *     description: Search for patients using phone number, email, or insurance number
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         required: true   
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Patients found successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Patient'
+ *       500:
+ *         description: Internal server error
+ */
+export async function searchPatients(req: Request, res: Response): Promise<any> {
+    try {
+        const { searchTerm } = req.body;
+        if (!searchTerm) {
+            return res.status(400).json({ error: 'Search term is required' });
+        }
+
+        const patients = await db.query.users.findMany({
+            where: eq(users.role, 'patient'),
+            with: {
+                patientProfile: true
+            }
+        });
+
+        const validPatients = patients.filter(patient => 
+            patient.email === searchTerm ||
+            patient.phone === searchTerm ||
+            patient.patientProfile?.insuranceNumber === searchTerm
+        );
+
+        res.json(validPatients);
+    } catch (error) {
+        console.error('Error searching patients:', error);
+        res.status(500).json({ error: 'Failed to search patients' });
+    }
+}
+
 
