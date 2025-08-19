@@ -29,7 +29,7 @@ export default function Home() {
                   Welcome to AfyaOS
                 </h1>
                 <p className="mx-auto max-w-[700px] text-lg md:text-xl text-muted-foreground leading-relaxed">
-                  Streamline your healthcare operations with our modern, secure, and efficient management platform. Manage appointments, records, and more—all in one place.
+                  Streamline your healthcare operations with our modern, secure, and efficient management platform. Manage appointments, records, and more.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mt-4">
